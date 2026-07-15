@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: expence-tracker-db
+    restart: unless-stopped
+    ports:
+      # 5432 на хосте занят локальной службой postgresql-x64-18, а Windows позволяет
+      # Docker-прокси «занять» тот же порт молча — подключения при этом уходят в службу.
+      # Поэтому публикуем на 5433 (POSTGRES_PORT): конфликт исключён.
+      # Значения ${...} Compose берёт из .env в корне; :- задаёт дефолт на случай отсутствия.
+      - "${POSTGRES_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-expence_tracker}
+    volumes:
+      # В postgres:18+ том монтируется в /var/lib/postgresql, а не в .../data:
+      # образ сам кладёт данные в подкаталог с именем мажорной версии.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-expence_tracker}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
