@@ -8,8 +8,9 @@ import { PrismaService } from "../src/prisma/prisma.service";
 describe("Expenses (e2e)", () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let token: string;
+  let otherToken: string;
   let userId: string;
-  let otherUserId: string;
   let categoryId: string;
 
   beforeAll(async () => {
@@ -27,29 +28,35 @@ describe("Expenses (e2e)", () => {
     await app.close();
   });
 
+  const registerUser = (email: string, name: string) =>
+    request(app.getHttpServer())
+      .post("/api/auth/register")
+      .send({ email, name, password: "secret12" })
+      .expect(201);
+
   beforeEach(async () => {
     await prisma.client.expense.deleteMany();
     await prisma.client.category.deleteMany();
     await prisma.client.user.deleteMany();
 
-    const user = await prisma.client.user.create({
-      data: { email: "e2e@example.com", name: "E2E" },
-    });
-    const other = await prisma.client.user.create({
-      data: { email: "other@example.com", name: "Чужой" },
-    });
-    const category = await prisma.client.category.create({
-      data: { name: "Продукты", color: "#22c55e", userId: user.id },
-    });
+    // Пользователей заводим через API — userId теперь приходит из JWT, не из query.
+    const owner = await registerUser("e2e@example.com", "E2E");
+    const other = await registerUser("other@example.com", "Чужой");
 
-    userId = user.id;
-    otherUserId = other.id;
+    token = owner.body.accessToken;
+    otherToken = other.body.accessToken;
+    userId = owner.body.user.id;
+
+    const category = await prisma.client.category.create({
+      data: { name: "Продукты", color: "#22c55e", userId },
+    });
     categoryId = category.id;
   });
 
   const createExpense = () =>
     request(app.getHttpServer())
-      .post(`/api/expenses?userId=${userId}`)
+      .post("/api/expenses")
+      .set("Authorization", `Bearer ${token}`)
       .send({
         title: "Пятёрочка",
         amount: "1234.56",
@@ -58,9 +65,13 @@ describe("Expenses (e2e)", () => {
         categoryId,
       });
 
+  describe("guard", () => {
+    it("отклоняет запрос без токена с 401", async () => {
+      await request(app.getHttpServer()).get("/api/expenses").expect(401);
+    });
+  });
+
   describe("POST /api/expenses", () => {
-    // Регрессия: с @UsePipes на методе пайп применялся и к userId из query,
-    // и валидный запрос падал с «expected object, received string».
     it("создаёт расход и возвращает DTO", async () => {
       const response = await createExpense().expect(201);
 
@@ -81,22 +92,17 @@ describe("Expenses (e2e)", () => {
 
     it("отклоняет сумму с тремя знаками после запятой", async () => {
       await request(app.getHttpServer())
-        .post(`/api/expenses?userId=${userId}`)
+        .post("/api/expenses")
+        .set("Authorization", `Bearer ${token}`)
         .send({ title: "Плохой", amount: "10.999", spentAt: "2026-07-14T10:00:00.000Z" })
         .expect(400);
     });
 
     it("отклоняет запрос без обязательных полей", async () => {
       await request(app.getHttpServer())
-        .post(`/api/expenses?userId=${userId}`)
+        .post("/api/expenses")
+        .set("Authorization", `Bearer ${token}`)
         .send({ title: "Без суммы" })
-        .expect(400);
-    });
-
-    it("отклоняет userId, который не UUID", async () => {
-      await request(app.getHttpServer())
-        .post("/api/expenses?userId=not-a-uuid")
-        .send({ title: "X", amount: "10.00", spentAt: "2026-07-14T10:00:00.000Z" })
         .expect(400);
     });
   });
@@ -104,7 +110,8 @@ describe("Expenses (e2e)", () => {
   describe("GET /api/expenses", () => {
     it("отдаёт пустой список для нового пользователя", async () => {
       const response = await request(app.getHttpServer())
-        .get(`/api/expenses?userId=${userId}`)
+        .get("/api/expenses")
+        .set("Authorization", `Bearer ${token}`)
         .expect(200);
 
       expect(response.body).toEqual([]);
@@ -114,7 +121,8 @@ describe("Expenses (e2e)", () => {
       await createExpense().expect(201);
 
       const response = await request(app.getHttpServer())
-        .get(`/api/expenses?userId=${otherUserId}`)
+        .get("/api/expenses")
+        .set("Authorization", `Bearer ${otherToken}`)
         .expect(200);
 
       expect(response.body).toEqual([]);
@@ -126,7 +134,8 @@ describe("Expenses (e2e)", () => {
       const created = await createExpense().expect(201);
 
       const response = await request(app.getHttpServer())
-        .patch(`/api/expenses/${created.body.id}?userId=${userId}`)
+        .patch(`/api/expenses/${created.body.id}`)
+        .set("Authorization", `Bearer ${token}`)
         .send({ title: "Магнит" })
         .expect(200);
 
@@ -138,7 +147,8 @@ describe("Expenses (e2e)", () => {
       const created = await createExpense().expect(201);
 
       await request(app.getHttpServer())
-        .patch(`/api/expenses/${created.body.id}?userId=${otherUserId}`)
+        .patch(`/api/expenses/${created.body.id}`)
+        .set("Authorization", `Bearer ${otherToken}`)
         .send({ title: "Взлом" })
         .expect(404);
     });
@@ -149,11 +159,13 @@ describe("Expenses (e2e)", () => {
       const created = await createExpense().expect(201);
 
       await request(app.getHttpServer())
-        .delete(`/api/expenses/${created.body.id}?userId=${userId}`)
+        .delete(`/api/expenses/${created.body.id}`)
+        .set("Authorization", `Bearer ${token}`)
         .expect(204);
 
       const list = await request(app.getHttpServer())
-        .get(`/api/expenses?userId=${userId}`)
+        .get("/api/expenses")
+        .set("Authorization", `Bearer ${token}`)
         .expect(200);
       expect(list.body).toEqual([]);
     });
@@ -162,10 +174,12 @@ describe("Expenses (e2e)", () => {
       const created = await createExpense().expect(201);
 
       await request(app.getHttpServer())
-        .delete(`/api/expenses/${created.body.id}?userId=${userId}`)
+        .delete(`/api/expenses/${created.body.id}`)
+        .set("Authorization", `Bearer ${token}`)
         .expect(204);
       await request(app.getHttpServer())
-        .delete(`/api/expenses/${created.body.id}?userId=${userId}`)
+        .delete(`/api/expenses/${created.body.id}`)
+        .set("Authorization", `Bearer ${token}`)
         .expect(404);
     });
 
@@ -173,11 +187,13 @@ describe("Expenses (e2e)", () => {
       const created = await createExpense().expect(201);
 
       await request(app.getHttpServer())
-        .delete(`/api/expenses/${created.body.id}?userId=${otherUserId}`)
+        .delete(`/api/expenses/${created.body.id}`)
+        .set("Authorization", `Bearer ${otherToken}`)
         .expect(404);
 
       const list = await request(app.getHttpServer())
-        .get(`/api/expenses?userId=${userId}`)
+        .get("/api/expenses")
+        .set("Authorization", `Bearer ${token}`)
         .expect(200);
       expect(list.body).toHaveLength(1);
     });

@@ -40,3 +40,29 @@ export interface CategoryDto {
   name: string;
   color: string;
 }
+
+export const registerSchema = z.object({
+  email: z.email(),
+  name: z.string().min(1).max(120),
+  // 72 — предел bcrypt: байты сверх обрезаются, поэтому длиннее не принимаем.
+  password: z.string().min(8).max(72),
+});
+
+export const loginSchema = z.object({
+  email: z.email(),
+  password: z.string().min(1),
+});
+
+export type RegisterDto = z.infer<typeof registerSchema>;
+export type LoginDto = z.infer<typeof loginSchema>;
+
+export interface UserDto {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
+export interface AuthResponseDto {
+  accessToken: string;
+  user: UserDto;
+}

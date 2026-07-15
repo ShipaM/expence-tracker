@@ -8,7 +8,7 @@ import {
   ParseUUIDPipe,
   Post,
   Patch,
-  Query,
+  UseGuards,
 } from "@nestjs/common";
 import {
   createExpenseSchema,
@@ -17,32 +17,34 @@ import {
   type ExpenseDto,
   type UpdateExpenseDto,
 } from "@repo/shared";
+import { CurrentUser } from "../auth/current-user.decorator";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { ExpensesService } from "./expenses.service";
 
-// TODO: userId придёт из guard'а после появления аутентификации.
 @Controller("expenses")
+@UseGuards(JwtAuthGuard)
 export class ExpensesController {
   constructor(private readonly expenses: ExpensesService) {}
 
   @Get()
-  findAll(@Query("userId", ParseUUIDPipe) userId: string): Promise<ExpenseDto[]> {
+  findAll(@CurrentUser() userId: string): Promise<ExpenseDto[]> {
     return this.expenses.findAll(userId);
   }
 
   @Get(":id")
   findOne(
-    @Query("userId", ParseUUIDPipe) userId: string,
+    @CurrentUser() userId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<ExpenseDto> {
     return this.expenses.findOne(userId, id);
   }
 
   // Пайп вешаем на @Body, а не через @UsePipes: последний применяется ко всем
-  // аргументам метода, включая userId из query, и валидация падает на строке.
+  // аргументам метода и валидация падает на userId.
   @Post()
   create(
-    @Query("userId", ParseUUIDPipe) userId: string,
+    @CurrentUser() userId: string,
     @Body(new ZodValidationPipe(createExpenseSchema)) dto: CreateExpenseDto,
   ): Promise<ExpenseDto> {
     return this.expenses.create(userId, dto);
@@ -50,7 +52,7 @@ export class ExpensesController {
 
   @Patch(":id")
   update(
-    @Query("userId", ParseUUIDPipe) userId: string,
+    @CurrentUser() userId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateExpenseSchema)) dto: UpdateExpenseDto,
   ): Promise<ExpenseDto> {
@@ -60,7 +62,7 @@ export class ExpensesController {
   @Delete(":id")
   @HttpCode(204)
   remove(
-    @Query("userId", ParseUUIDPipe) userId: string,
+    @CurrentUser() userId: string,
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<void> {
     return this.expenses.remove(userId, id);

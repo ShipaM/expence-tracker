@@ -17,6 +17,8 @@ export default defineConfig({
     env: {
       DATABASE_URL: resolveTestDatabaseUrl(),
       NODE_ENV: "test",
+      // Секрет только для e2e: боевой берётся из .env (JWT_SECRET).
+      JWT_SECRET: "e2e-test-secret",
     },
   },
   plugins: [swc.vite({ module: { type: "es6" } })],
