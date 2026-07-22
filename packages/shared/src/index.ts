@@ -39,6 +39,7 @@ export interface CategoryDto {
   id: string;
   name: string;
   color: string;
+  icon: string | null;
 }
 
 export const registerSchema = z.object({

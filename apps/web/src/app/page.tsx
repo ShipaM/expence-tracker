@@ -1,3 +1,5 @@
+import { AuthStatus } from "@/widgets/auth-status";
+
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-4 px-6 py-16">
@@ -5,6 +7,7 @@ export default function HomePage() {
       <p className="text-muted-foreground">
         Каркас проекта готов. Дальше: список расходов, форма добавления и сводка по категориям.
       </p>
+      <AuthStatus />
     </main>
   );
 }

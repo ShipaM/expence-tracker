@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 
@@ -10,6 +11,11 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
   app.setGlobalPrefix("api");
+  // class-validator для DTO-классов (категории). zod-контроллеры (auth, expenses) не
+  // затрагиваются: их @Body-типы — z.infer-алиасы, в рантайме метатип Object, и пайп их пропускает.
+  app.useGlobalPipes(
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+  );
 
   const port = Number(process.env.PORT ?? 3001);
   await app.listen(port);
