@@ -70,17 +70,38 @@ expence-tracker/
 │   │   ├── eslint.config.mjs         ← Правила линтера для фронта.
 │   │   ├── tsconfig.json             ← Настройки TypeScript фронта (наследуют base).
 │   │   ├── next-env.d.ts             ← [авто] типы Next.js.
-│   │   └── src/
-│   │       ├── app/                   ← App Router: каждая папка = маршрут (URL).
-│   │       │   ├── layout.tsx          ← Общая «обёртка» всех страниц (html, body, шрифты).
-│   │       │   ├── page.tsx            ← Главная страница «/». Сейчас это заглушка.
-│   │       │   └── globals.css         ← Глобальные стили + тема Tailwind 4
-│   │       │                             (@theme inline, CSS-переменные, без tailwind.config.js).
-│   │       ├── components/ui/          ← Сюда падают компоненты shadcn/ui (пока .gitkeep — пусто).
-│   │       └── lib/
-│   │           ├── api.ts              ← Клиент к бэкенду: функции listExpenses/createExpense/…
-│   │           │                          Именно тут фронт ходит на http://localhost:3001/api.
-│   │           └── utils.ts            ← Мелкие утилиты (cn() для склейки классов Tailwind).
+│   │   └── src/                       ← Организован по Feature-Sliced Design (FSD).
+│   │       │                             Слои сверху вниз, импорт только ВНИЗ (см. раздел 9).
+│   │       ├── app/                   ← Next App Router: только маршруты и BFF Route Handlers.
+│   │       │   ├── layout.tsx          ← Серверный: читает getSession(), оборачивает всё в SessionProvider.
+│   │       │   ├── page.tsx            ← Главная «/» (виджет AuthStatus: «Войти»/«Регистрация» либо «Выйти»).
+│   │       │   ├── globals.css         ← Глобальные стили + тема Tailwind 4
+│   │       │   │                         (@theme inline, CSS-переменные, без tailwind.config.js).
+│   │       │   ├── (auth)/             ← Группа маршрутов входа (скобки = не влияет на URL).
+│   │       │   │   ├── login/page.tsx     ← /login. Серверный гард: залогинен → redirect('/').
+│   │       │   │   └── register/page.tsx  ← /register. Тот же гард.
+│   │       │   └── api/auth/           ← BFF Route Handlers: тонкие прокси к Nest, СТАВЯТ httpOnly-куку.
+│   │       │       ├── login/route.ts       POST /api/auth/login
+│   │       │       ├── register/route.ts    POST /api/auth/register
+│   │       │       └── logout/route.ts      POST /api/auth/logout (гасит куку)
+│   │       ├── views/                 ← Страницы-композиции (FSD-слой «pages», переименован: «pages» занят Next).
+│   │       │   ├── login/             ← LoginPage — собирает форму входа.
+│   │       │   └── register/          ← RegisterPage.
+│   │       ├── widgets/               ← Самостоятельные блоки из фич+сущностей.
+│   │       │   └── auth-status/       ← AuthStatus: гостю — ссылки входа, юзеру — привет + «Выйти».
+│   │       ├── features/auth/         ← Пользовательские сценарии авторизации.
+│   │       │   ├── login/             ← LoginForm + use-login (react-hook-form + zodResolver).
+│   │       │   ├── register/          ← RegisterForm + use-register.
+│   │       │   └── logout/            ← LogoutButton.
+│   │       ├── entities/session/      ← Бизнес-сущность «сессия».
+│   │       │   ├── server.ts             ← Серверный вход: getSession() (только сервер).
+│   │       │   └── model/                ← session.server.ts (читает куку → Nest /auth/me) + SessionProvider/useSession.
+│   │       ├── shared/                ← Переиспользуемое без домена.
+│   │       │   ├── ui/                   ← shadcn/ui (button, input, card, form…). Сюда кладёт `npx shadcn add`.
+│   │       │   ├── lib/utils.ts          ← cn() для склейки классов Tailwind.
+│   │       │   ├── api/                  ← Серверные клиенты к Nest: nest.ts, auth.server.ts, expenses.ts.
+│   │       │   └── config/cookie.ts      ← Имя и опции httpOnly-куки session.
+│   │       └── components/ui/.gitkeep ← [устар.] Пустой остаток: shadcn переехал в shared/ui.
 │   │
 │   └── api/                   ← БЭКЕНД (NestJS)
 │       ├── package.json           ← Зависимости и скрипты бэка (@nestjs/*, zod, vitest…).
@@ -97,7 +118,7 @@ expence-tracker/
 │       │   ├── main.ts                 ← ТОЧКА ВХОДА. Поднимает сервер, включает CORS,
 │       │   │                              ставит глобальный префикс /api, слушает порт 3001.
 │       │   ├── app.module.ts            ← Корневой модуль: собирает все части приложения
-│       │   │                              (Config, Prisma, Expenses) в одно целое.
+│       │   │                              (Config, Prisma, Auth, Users, Expenses, Categories) в одно целое.
 │       │   ├── common/
 │       │   │   └── zod-validation.pipe.ts ← «Труба» валидации: проверяет тело запроса
 │       │   │                                 zod-схемой из @repo/shared перед попаданием в код.
@@ -105,9 +126,13 @@ expence-tracker/
 │       │   │   ├── prisma.module.ts     ← Модуль, отдающий PrismaService всему приложению.
 │       │   │   └── prisma.service.ts     ← Обёртка над Prisma-клиентом: подключается к БД
 │       │   │                                при старте, отключается при остановке.
-│       │   └── expenses/                ← ФИЧА «расходы» — образец, как устроена любая фича в Nest:
+│       │   ├── auth/                    ← Авторизация: register/login/me, JWT, JwtAuthGuard, @CurrentUser().
+│       │   ├── users/                   ← Хранение пользователей (repo→service→CQRS-хэндлеры), без контроллера.
+│       │   │                              Граница Users↔Auth — через CQRS-шину, а не импорт сервисов (см. CLAUDE.md).
+│       │   ├── categories/             ← CRUD категорий под JwtAuthGuard (валидация тут на class-validator).
+│       │   └── expenses/                ← ФИЧА «расходы» — образец, как устроена фича в Nest (под JwtAuthGuard):
 │       │       ├── expenses.module.ts   ← Склеивает контроллер и сервис этой фичи.
-│       │       ├── expenses.controller.ts ← Принимает HTTP-запросы: GET/POST/PATCH/DELETE /api/expenses.
+│       │       ├── expenses.controller.ts ← HTTP GET/POST/PATCH/DELETE /api/expenses; userId — из токена (@CurrentUser).
 │       │       ├── expenses.service.ts    ← Бизнес-логика: ходит в БД через Prisma, готовит ответ.
 │       │       └── expenses.service.spec.ts ← Юнит-тесты сервиса (с замоканным Prisma).
 │       └── test/
@@ -510,36 +535,53 @@ docker-compose.yml                    DATABASE_URL=postgresql://…@localhost:54
 
 ## 7. Как это всё работает вместе — путь одного запроса
 
-Чтобы связать всё воедино, проследим, что происходит, когда пользователь добавляет
-расход. Это показывает, зачем каждый кусок нужен.
+Чтобы связать всё воедино, проследим **реальный** путь, который уже работает
+end-to-end: пользователь входит в систему. Он показывает и наши библиотеки, и
+паттерн авторизации BFF (см. раздел 9).
+
+Ключевая идея: **клиент никогда не видит JWT**. Браузер общается только со своим же
+Next-сервером, а тот прячет токен в httpOnly-куку и сам ходит в Nest.
 
 ```
 Браузер (apps/web)
-   │  пользователь заполнил форму
-   │  apps/web/src/lib/api.ts → fetch POST http://localhost:3001/api/expenses?userId=…
+   │  пользователь заполнил форму входа
+   │  features/auth/login (react-hook-form + zodResolver ← loginSchema из @repo/shared)
+   │  fetch POST /api/auth/login   ← СВОЙ же Next-сервер (same-origin), НЕ Nest напрямую
+   ▼
+Next Route Handler (BFF, apps/web/src/app/api/auth/login/route.ts)
+   │  proxyAuth (shared/api/auth.server.ts) → nestFetch к Nest :3001/api/auth/login
    ▼
 NestJS (apps/api)
    │  main.ts принял запрос (префикс /api, CORS разрешён)
-   │  expenses.controller.ts поймал POST /expenses
-   │  ZodValidationPipe проверил тело схемой createExpenseSchema  ← из @repo/shared
-   │      (та же схема, что знает фронт — один источник правды!)
-   │  expenses.service.ts выполнил бизнес-логику
+   │  auth.controller.ts → auth.service.ts: queryBus GetUserByEmailQuery, сверка пароля (bcryptjs),
+   │  подпись JWT (@nestjs/jwt). Тело валидируется loginSchema ← тот же @repo/shared
    ▼
 Prisma (packages/db)
-   │  prisma.service.ts → client.expense.create(...)             ← клиент из @repo/db
+   │  prisma.service.ts → client.user.findUnique(...)            ← клиент из @repo/db
    ▼
 PostgreSQL (docker, :5433)
-   │  строка записана в таблицу expenses
-   ▼  ...и ответ идёт обратно, amount отдаётся строкой (toFixed(2))
-Браузер получает JSON и рисует расход
+   │  строка пользователя найдена
+   ▼  Nest вернул { accessToken, user }
+Next Route Handler
+   │  кладёт accessToken в httpOnly-куку `session`, наружу отдаёт ТОЛЬКО { user }
+   ▼
+Браузер получает { user } (без токена!), редиректит на «/»; на «/» серверный layout
+через getSession() валидирует куку запросом к Nest /auth/me и рисует «Вы вошли как …».
 ```
 
 Обрати внимание, где всплывают наши библиотеки:
 
-- **`@repo/shared`** — и фронт (`lib/api.ts`), и бэк (`ZodValidationPipe`) используют
-  одни и те же типы и схему валидации. Никакого рассинхрона.
+- **`@repo/shared`** — и фронт (`zodResolver` в форме), и бэк (валидация тела) используют
+  одну и ту же `loginSchema` и типы (`UserDto`, `AuthResponseDto`). Никакого рассинхрона.
 - **`@repo/db`** — бэк не создаёт Prisma-клиент сам, а берёт готовую фабрику из
   библиотеки. Единая точка настройки подключения.
+
+> Путь для **расходов** будет такой же формы, но пока не собран на фронте: эндпоинты
+> `/api/expenses` на стороне API готовы и закрыты `JwtAuthGuard` — `userId` берётся из
+> токена (через `@CurrentUser()`), **а не** из query `?userId=` (тот удалён как дыра
+> изоляции). Фронтовый клиент `shared/api/expenses.ts` пока временный и переключится на
+> Bearer из сессии отдельной задачей. Денежная сумма `amount` при этом отдаётся наружу
+> строкой (`toFixed(2)`), чтобы не терять копейки на JSON-числах.
 
 Вот ради этого «переиспользования одного кода в разных местах» и затевается монорепо
 с `packages/`, а Turborepo следит, чтобы всё собралось в правильном порядке.
@@ -550,8 +592,10 @@ PostgreSQL (docker, :5433)
 
 | Хочу…                                       | Смотри сюда                                         |
 | ------------------------------------------- | --------------------------------------------------- |
-| Изменить внешний вид страницы               | `apps/web/src/app/page.tsx`, `globals.css`          |
-| Добавить запрос к бэку с фронта             | `apps/web/src/lib/api.ts`                           |
+| Изменить внешний вид страницы               | `apps/web/src/views/*`, `widgets/*`, `globals.css`  |
+| Добавить страницу/маршрут                   | `apps/web/src/app/**/page.tsx` → делегирует в `views` |
+| Добавить серверный запрос к Nest с фронта   | `apps/web/src/shared/api/*` (nest.ts, auth.server.ts) |
+| Тронуть авторизацию на фронте (куки/сессия) | `entities/session/*`, `app/api/auth/*`, `shared/config/cookie.ts` |
 | Добавить/изменить HTTP-эндпоинт             | `apps/api/src/expenses/expenses.controller.ts`      |
 | Изменить бизнес-логику расходов             | `apps/api/src/expenses/expenses.service.ts`         |
 | Поменять правила валидации/типы             | `packages/shared/src/index.ts`                      |
@@ -562,7 +606,72 @@ PostgreSQL (docker, :5433)
 
 ---
 
-## 9. Мини-словарь терминов
+## 9. Feature-Sliced Design и паттерн BFF (фронтенд)
+
+Раздел 2 показал дерево `apps/web/src`. Здесь — **почему** оно так устроено.
+
+### 9.1. Зачем слои (Feature-Sliced Design)
+
+Раньше фронт был плоским (`lib/`, `components/`) — это ок для заглушки, но с ростом
+превращается в кашу: непонятно, что от чего зависит и что можно менять безопасно.
+**Feature-Sliced Design (FSD)** наводит порядок: код делится на слои, и импорт разрешён
+**только вниз** — слой видит нижние, но не верхние и не соседей своего уровня.
+
+```
+app       ← маршруты Next и BFF Route Handlers (тонкие обёртки)
+views     ← страницы-композиции (FSD-слой «pages» переименован: «pages» занят Next)
+widgets   ← самостоятельные блоки (напр. auth-status)
+features  ← пользовательские сценарии (auth/login, auth/register, auth/logout)
+entities  ← бизнес-сущности (session)
+shared    ← ui (shadcn), lib, api, config — переиспользуемое, без домена
+```
+
+Правило «импорт только вниз» — то же, что между `apps/` и `packages/` (раздел 4), но
+уже **внутри** фронта. Оно не даёт зависимостям запутаться. Наружу слайс общается через
+свой `index.ts` (публичный API), внутри — сегменты `ui/`, `model/`, `api/`, `config/`.
+Алиас `@/* → src/*`.
+
+Пара адаптаций под Next App Router:
+- FSD-слой «pages» назван **`views`**, потому что слово «pages» занято самим Next.
+- `src/app` держит только маршруты и BFF-хендлеры и делегирует в `views`; провайдеры
+  сведены в корневой серверный `layout.tsx`.
+- shadcn/ui живёт в `shared/ui` (алиасы в `components.json` перенастроены на `@/shared/*`).
+
+### 9.2. Зачем BFF и httpOnly-кука (безопасность токена)
+
+**BFF = Backend For Frontend.** Идея: браузер общается не с Nest напрямую, а со своим же
+Next-сервером, а тот уже ходит в Nest. Зачем усложнять? Ради **безопасности JWT**.
+
+Если положить токен в `localStorage` или в обычную куку, до него дотянется любой скрипт
+на странице (в т.ч. вредный — XSS) и украдёт. Поэтому:
+
+- Форма входа шлёт запрос на **свой** Route Handler (`POST /api/auth/login`, same-origin).
+- Хендлер ходит в Nest, получает `accessToken` и кладёт его в **httpOnly-куку** `session`.
+  `httpOnly` значит «JavaScript эту куку не видит» — её отправляет только браузер и только
+  на наш сервер. Наружу, в браузерный JS, хендлер отдаёт **только** `{ user }`, без токена.
+- Дальше на каждый серверный рендер `getSession()` (только сервер, помечен `server-only`)
+  читает куку и валидирует её запросом к Nest `/auth/me` (юзер мог быть удалён, пока жив
+  7-дневный токен) → `UserDto` либо `null`.
+
+Так JWT **никогда** не попадает в клиентский JavaScript — украсть нечего.
+
+> Граница «сервер/клиент» строгая: серверные модули помечены `import "server-only"` и не
+> реэкспортируются через клиентский `index.ts` слайса (для `session` серверный вход —
+> отдельный `server.ts`). `shared/api/nest.ts` — тоже только сервер.
+
+### 9.3. Редирект залогиненного со страниц входа — на самой странице
+
+Залогиненного пользователя со страниц `/login` и `/register` уводит на `/` **гард в самих
+серверных `page.tsx`** (`if (await getSession()) redirect("/")`), а **не** middleware/proxy.
+
+Почему не middleware: он проверял бы только **наличие** куки, а `getSession()` — её
+**валидность**. Протухшая кука (например, после смены `JWT_SECRET`) иначе давала петлю
+редиректов `/login → / → /login` и тормозила навигацию блокирующим сетевым вызовом на
+каждый запрос. Источник истины один — `getSession`. (Подробности — в `CLAUDE.md`.)
+
+---
+
+## 10. Мини-словарь терминов
 
 - **Монорепо** — один репозиторий с несколькими проектами внутри.
 - **Workspace (воркспейс)** — один пакет внутри монорепо (у нас их 4 + корень).
@@ -586,3 +695,11 @@ PostgreSQL (docker, :5433)
   контейнера с портом на твоём компьютере.
 - **Healthcheck** — периодическая проверка, что сервис в контейнере готов принимать
   подключения (`pg_isready`).
+- **Feature-Sliced Design (FSD)** — способ организации фронта по слоям
+  (`app → views → widgets → features → entities → shared`) с импортом только вниз.
+- **BFF (Backend For Frontend)** — свой серверный слой между браузером и Nest
+  (Next Route Handlers `app/api/auth/*`), который прячет JWT и отдаёт клиенту только `{ user }`.
+- **httpOnly-кука** — кука, недоступная браузерному JavaScript; в ней лежит JWT
+  (`session`), поэтому его нельзя украсть скриптом на странице.
+- **`server-only`** — маркер-импорт, запрещающий тянуть серверный модуль в клиентский
+  бандл; так `getSession()` и клиенты к Nest не утекают на клиент.

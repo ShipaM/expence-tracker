@@ -47,13 +47,13 @@ src/
 │   ├── globals.css                   # остаётся здесь; дополняется токенами (см. ниже)
 │   ├── page.tsx                      # главная-заглушка + кнопка «Выйти» (если есть сессия)
 │   ├── (auth)/
-│   │   ├── login/page.tsx            # рендерит <LoginPage/> из views
-│   │   └── register/page.tsx         # рендерит <RegisterPage/> из views
+│   │   ├── login/page.tsx            # серверный: getSession() → redirect('/') залогиненного, иначе <LoginPage/>
+│   │   └── register/page.tsx         # серверный: getSession() → redirect('/') залогиненного, иначе <RegisterPage/>
 │   └── api/auth/                     # Route Handlers (BFF-прокси к Nest, ставят куку)
 │       ├── login/route.ts
 │       ├── register/route.ts
 │       └── logout/route.ts
-├── middleware.ts                     # редирект залогиненных с /login,/register на /
+# middleware.ts/proxy.ts — упразднён: гард переехал в сами page.tsx (см. ниже «Обновление»)
 ├── views/
 │   ├── login/{ui/LoginPage.tsx,index.ts}
 │   └── register/{ui/RegisterPage.tsx,index.ts}
@@ -135,8 +135,9 @@ src/
   с начальным `user`.
 - `page.tsx` — оставить заглушку, добавить кнопку «Выйти» (клиентский компонент, дергает
   `/api/auth/logout` + `router.refresh()`), если `useSession()` не пуст.
-- `middleware.ts` — если кука `session` есть и путь `/login` или `/register` → редирект на `/`.
-  Матчер только на эти пути (защиту приватных маршрутов оставляем на будущее).
+- Редирект залогиненного с `/login`,`/register` на `/` — гард в самих серверных `page.tsx`
+  (`if (await getSession()) redirect("/")`), НЕ в middleware/proxy. Причина см. «Обновление» ниже.
+  (Защиту приватных маршрутов оставляем на будущее.)
 
 ## CLAUDE.md
 
@@ -158,7 +159,7 @@ src/
 3. `entities/session` (server + context).
 4. Route Handlers `app/api/auth/{login,register,logout}`.
 5. `features/auth/{login,register}` (формы + модель).
-6. `views` + маршруты `app/(auth)/*` + `layout.tsx` + `middleware.ts` + кнопка «Выйти».
+6. `views` + маршруты `app/(auth)/*` (с гардом `getSession()→redirect` в page.tsx) + `layout.tsx` + кнопка «Выйти».
 7. Раздел FSD в `CLAUDE.md`.
 8. Проверка (typecheck/lint/build + ручной прогон).
 
@@ -173,7 +174,28 @@ src/
    (<8) / битый email → ошибки полей (клиентский zod).
 3. `/logout` (кнопка «Выйти» на `/`) → кука снята, `useSession()` пуст.
 4. `/login`: верные креды → редирект; неверные → корневая ошибка «Неверный email или пароль».
-5. Залогинен и открыл `/login` → middleware редиректит на `/`.
+5. Залогинен и открыл `/login` → серверный гард в `page.tsx` редиректит на `/`.
 6. `npm run typecheck`, `npm run lint`, `npm run build` в `apps/web`
    (сборку гнать с `NODE_ENV=production` — см. ловушку next build в CLAUDE.md).
 7. Прогнать `/run` или `claude-in-chrome` для визуальной проверки страниц (light/dark).
+
+## Обновление: гард входа переехал с middleware/proxy в page.tsx
+
+Изначально редирект залогиненного со страниц входа делал `middleware.ts` (в Next 16
+переименован в `proxy.ts`). От него **отказались** — файл удалён, гард живёт в серверных
+`(auth)/login/page.tsx` и `(auth)/register/page.tsx` (`if (await getSession()) redirect("/")`).
+
+Две причины:
+
+1. **Корректность.** Middleware проверял лишь **наличие** куки (`cookies.has("session")`), а
+   `getSession()`/`AuthStatus` — её **валидность** (запрос к Nest `/auth/me`). Протухшая кука
+   (например, после смены `JWT_SECRET`) давала петлю: `getSession` рисует «Войти», клик ведёт на
+   `/login`, middleware по факту наличия куки редиректит обратно на `/` — и так по кругу.
+2. **Задержка.** Middleware выполняется вживую на **каждый** запрос (включая сам клик) и его
+   результат не кешируется. Сетевой `fetch` к `/auth/me` внутри него блокировал навигацию.
+   Гард в `page.tsx` едет вместе с RSC-prefetch, поэтому переход гостя мгновенный, а для гостя
+   вовсе без куки `getSession` возвращает `null` сразу, без сетевого вызова.
+
+Источник истины один — `getSession`. Проверять авторизацию по одному наличию куки нельзя.
+Когда понадобится защита приватных маршрутов, вернём proxy/middleware отдельно — но с
+**валидацией** токена, а не presence-check.
