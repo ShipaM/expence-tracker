@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
+
 import { Button } from "@/shared/ui/button";
+import { Checkbox } from "@/shared/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -60,6 +63,42 @@ export function RegisterForm() {
               <FormControl>
                 <Input type="password" autoComplete="new-password" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="agree"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex items-start gap-2">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                    className="mt-0.5"
+                  />
+                </FormControl>
+                <FormLabel className="block text-sm font-normal leading-snug">
+                  Согласен с{" "}
+                  <Link
+                    href="/terms"
+                    className="underline underline-offset-2 hover:text-primary"
+                  >
+                    пользовательским соглашением
+                  </Link>{" "}
+                  и{" "}
+                  <Link
+                    href="/privacy"
+                    className="underline underline-offset-2 hover:text-primary"
+                  >
+                    политикой обработки данных
+                  </Link>
+                </FormLabel>
+              </div>
               <FormMessage />
             </FormItem>
           )}

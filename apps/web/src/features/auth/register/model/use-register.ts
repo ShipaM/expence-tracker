@@ -3,20 +3,31 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { registerSchema, type RegisterDto } from "@repo/shared";
+
+// Согласие — чисто клиентское поле формы: в API (registerSchema) оно не уходит.
+const registerFormSchema = registerSchema.extend({
+  agree: z.boolean().refine((v) => v, {
+    message: "Подтвердите согласие, чтобы продолжить",
+  }),
+});
+
+type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
 export function useRegister() {
   const router = useRouter();
-  const form = useForm<RegisterDto>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: { email: "", name: "", password: "" },
+  const form = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerFormSchema),
+    defaultValues: { email: "", name: "", password: "", agree: false },
   });
 
-  async function onSubmit(values: RegisterDto) {
+  async function onSubmit({ agree: _agree, ...values }: RegisterFormValues) {
+    const payload: RegisterDto = values;
     const response = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
+      body: JSON.stringify(payload),
     });
 
     if (response.ok) {
