@@ -118,14 +118,14 @@ describe("Transactions (e2e)", () => {
         .get("/api/transactions?type=INCOME")
         .set("Authorization", `Bearer ${token}`)
         .expect(200);
-      expect(income.body).toHaveLength(1);
-      expect(income.body[0].type).toBe("INCOME");
+      expect(income.body.items).toHaveLength(1);
+      expect(income.body.items[0].type).toBe("INCOME");
 
       const byCategory = await request(app.getHttpServer())
         .get(`/api/transactions?categoryId=${categoryId}`)
         .set("Authorization", `Bearer ${token}`)
         .expect(200);
-      expect(byCategory.body).toHaveLength(2);
+      expect(byCategory.body.items).toHaveLength(2);
     });
 
     it("фильтрует по диапазону дат", async () => {
@@ -136,7 +136,7 @@ describe("Transactions (e2e)", () => {
         .get("/api/transactions?dateFrom=2026-07-01T00:00:00.000Z&dateTo=2026-07-31T23:59:59.000Z")
         .set("Authorization", `Bearer ${token}`)
         .expect(200);
-      expect(response.body).toHaveLength(1);
+      expect(response.body.items).toHaveLength(1);
     });
 
     it("не показывает транзакции чужого пользователя", async () => {
@@ -146,7 +146,31 @@ describe("Transactions (e2e)", () => {
         .get("/api/transactions")
         .set("Authorization", `Bearer ${otherToken}`)
         .expect(200);
-      expect(response.body).toEqual([]);
+      expect(response.body).toMatchObject({ items: [], total: 0 });
+    });
+
+    it("пагинирует: total по фильтру, items — только запрошенная страница", async () => {
+      // 3 транзакции с разными датами → порядок date desc детерминирован.
+      await createTransaction(validBody({ date: "2026-07-01T00:00:00.000Z" })).expect(201);
+      await createTransaction(validBody({ date: "2026-07-02T00:00:00.000Z" })).expect(201);
+      await createTransaction(validBody({ date: "2026-07-03T00:00:00.000Z" })).expect(201);
+
+      const page1 = await request(app.getHttpServer())
+        .get("/api/transactions?page=1&limit=2")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+      expect(page1.body).toMatchObject({ total: 3, page: 1, limit: 2 });
+      expect(page1.body.items).toHaveLength(2);
+      // date desc: самая свежая (03) — первой.
+      expect(page1.body.items[0].date).toBe("2026-07-03T00:00:00.000Z");
+
+      const page2 = await request(app.getHttpServer())
+        .get("/api/transactions?page=2&limit=2")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+      expect(page2.body).toMatchObject({ total: 3, page: 2, limit: 2 });
+      expect(page2.body.items).toHaveLength(1);
+      expect(page2.body.items[0].date).toBe("2026-07-01T00:00:00.000Z");
     });
   });
 
@@ -244,7 +268,7 @@ describe("Transactions (e2e)", () => {
         .get("/api/transactions")
         .set("Authorization", `Bearer ${token}`)
         .expect(200);
-      expect(list.body).toEqual([]);
+      expect(list.body).toMatchObject({ items: [], total: 0 });
     });
 
     it("не даёт удалить чужую транзакцию", async () => {

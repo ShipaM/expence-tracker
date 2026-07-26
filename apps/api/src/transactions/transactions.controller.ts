@@ -11,7 +11,11 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import type { TransactionDto, TransactionSummaryDto } from "@repo/shared";
+import type {
+  PaginatedTransactionsDto,
+  TransactionDto,
+  TransactionSummaryDto,
+} from "@repo/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { TransactionsService } from "./transactions.service";
@@ -39,7 +43,7 @@ export class TransactionsController {
   findAll(
     @CurrentUser() userId: string,
     @Query() query: QueryTransactionsDto,
-  ): Promise<TransactionDto[]> {
+  ): Promise<PaginatedTransactionsDto> {
     return this.transactions.findAll(userId, query);
   }
 

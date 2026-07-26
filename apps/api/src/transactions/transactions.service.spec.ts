@@ -29,6 +29,7 @@ const prismaMock = {
     transaction: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
+      count: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
@@ -61,11 +62,14 @@ describe("TransactionsService", () => {
   });
 
   describe("findAll", () => {
-    it("сериализует amount в строку с двумя знаками", async () => {
+    it("сериализует amount в строку и оборачивает в { items, total, page, limit }", async () => {
       prismaMock.client.transaction.findMany.mockResolvedValue([transactionRow]);
+      prismaMock.client.transaction.count.mockResolvedValue(1);
 
-      const [transaction] = await service.findAll(USER_ID, {});
+      const result = await service.findAll(USER_ID, {});
 
+      expect(result).toMatchObject({ total: 1, page: 1, limit: 20 });
+      const [transaction] = result.items;
       expect(transaction?.amount).toBe("1234.56");
       expect(typeof transaction?.amount).toBe("string");
       expect(transaction?.category).toEqual(categoryRow);
@@ -73,6 +77,7 @@ describe("TransactionsService", () => {
 
     it("строит where из фильтров: type, categoryId и диапазон дат", async () => {
       prismaMock.client.transaction.findMany.mockResolvedValue([]);
+      prismaMock.client.transaction.count.mockResolvedValue(0);
 
       await service.findAll(USER_ID, {
         type: "INCOME",
@@ -92,15 +97,30 @@ describe("TransactionsService", () => {
         },
       });
       expect(args.orderBy).toEqual({ date: "desc" });
+      // count фильтрует по тому же where, что и выборка.
+      expect(prismaMock.client.transaction.count.mock.calls[0]?.[0].where).toEqual(args.where);
     });
 
     it("не добавляет date в where без dateFrom/dateTo", async () => {
       prismaMock.client.transaction.findMany.mockResolvedValue([]);
+      prismaMock.client.transaction.count.mockResolvedValue(0);
 
       await service.findAll(USER_ID, { type: "EXPENSE" });
 
       const args = prismaMock.client.transaction.findMany.mock.calls[0]?.[0];
       expect(args.where).not.toHaveProperty("date");
+    });
+
+    it("переводит page/limit в skip/take и возвращает их в ответе", async () => {
+      prismaMock.client.transaction.findMany.mockResolvedValue([]);
+      prismaMock.client.transaction.count.mockResolvedValue(25);
+
+      const result = await service.findAll(USER_ID, { page: 3, limit: 10 });
+
+      const args = prismaMock.client.transaction.findMany.mock.calls[0]?.[0];
+      expect(args.skip).toBe(20);
+      expect(args.take).toBe(10);
+      expect(result).toMatchObject({ total: 25, page: 3, limit: 10 });
     });
   });
 
