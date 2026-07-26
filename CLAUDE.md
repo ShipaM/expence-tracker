@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Статус проекта
 
 Каркас поднят и проверен: зависимости установлены, миграции применены, CRUD
-`/api/expenses` и `/api/categories` отвечают, все скрипты во всех `package.json` прогнаны и работают.
-Тесты: 52 юнита (33 в `api` + 19 в `shared`) + 37 e2e (9 auth + 12 expenses + 16 categories).
+`/api/transactions` и `/api/categories` отвечают, все скрипты во всех `package.json` прогнаны и работают.
+Тесты: 43 юнита (39 в `api` + 4 в `shared`) + 42 e2e (9 auth + 17 transactions + 16 categories).
 Фронтенд — пока статичная заглушка на главной, авторизации на нём ещё нет:
 JWT выдаётся и проверяется только на стороне API.
 
@@ -44,7 +44,7 @@ npm run test:e2e            # e2e для API (supertest), нужен запущ�
 Один тест-файл или кейс — только внутри воркспейса, иначе Turbo передаст аргументы всем:
 
 ```bash
-npm run test --workspace @repo/api -- src/expenses/expenses.service.spec.ts
+npm run test --workspace @repo/api -- src/transactions/transactions.service.spec.ts
 npm run test --workspace @repo/api -- -t "бросает 404"
 ```
 
@@ -70,7 +70,8 @@ packages/shared  zod-схемы + DTO, общие для фронта и бэк�
 prisma/    PrismaService (клиент Prisma), глобальный
 users/     хранение пользователей: repository → service → CQRS-хэндлеры. Контроллера нет
 auth/      register / login / me, JWT, JwtAuthGuard, @CurrentUser()
-expenses/  CRUD расходов, целиком под JwtAuthGuard
+transactions/ CRUD доходов/расходов + агрегация /summary, целиком под JwtAuthGuard;
+              валидация на class-validator (см. «Конвенции»), через CQRS проверяет юзера
 categories/ CRUD категорий, целиком под JwtAuthGuard; валидация на class-validator (см. «Конвенции»)
 ```
 
@@ -81,9 +82,9 @@ categories/ CRUD категорий, целиком под JwtAuthGuard; вал�
 `UsersService` и `UsersRepository` приватны для модуля. Хэндлеры видны из `AuthModule` потому,
 что `CqrsModule` регистрирует их глобально — отсюда и отсутствие импорта `UsersModule`
 (в `auth.module.ts` на этом стоит комментарий, не «забытый» импорт — не добавляйте его).
-Так же поступает `CategoriesModule`: он импортирует `CqrsModule` и перед созданием категории
-диспетчит `GetUserByIdQuery` через `QueryBus` (юзер мог быть удалён, пока жив 7-дневный токен);
-нет пользователя → `UnauthorizedException`. `UsersModule` он не импортирует.
+Так же поступают `CategoriesModule` и `TransactionsModule`: они импортируют `CqrsModule` и перед
+созданием записи диспетчат `GetUserByIdQuery` через `QueryBus` (юзер мог быть удалён, пока жив
+7-дневный токен); нет пользователя → `UnauthorizedException`. `UsersModule` они не импортируют.
 
 Разделение ответственности: хэширование пароля (`bcryptjs`) и подпись JWT живут в `AuthService`,
 Users лишь сохраняет готовый `passwordHash` и отдаёт записи. Уникальность email ловится в
@@ -136,19 +137,19 @@ shared    ui (shadcn), lib (cn), api (клиент к Nest), config — пере
 реэкспортируются через клиентский `index.ts` слайса (для `session` серверный вход — отдельный
 `server.ts`). `shared/api/nest.ts` (`nestFetch`/`nestJson`) — тоже только сервер.
 
-Заметка: `shared/api/expenses.ts` пока ходит с `?userId=` (перенос из старого `lib/api.ts`) и
-нигде не используется — переключение на Bearer из сессии запланировано отдельно.
+Заметка: фронтенд транзакций (страница/фичи FSD, BFF `/api/transactions`) ещё не сделан —
+запланирован отдельной задачей поверх API-модуля `transactions`.
 
 ## Замороженные версии — не поднимать
 
 Три пакета намеренно НЕ на `latest`. Обновление любого из них ломает сборку молча или почти
 молча — прежде чем поднимать, прочитайте причину.
 
-| Пакет | Стоит | В npm latest | Почему заморожен |
-|---|---|---|---|
-| typescript | 5.9.3 | 7.0.2 | NestJS 11 заявляет только `^5.7.3`; поддержка `emitDecoratorMetadata` в нативном tsgo не подтверждена — без неё ломается DI |
-| eslint | 9.39.5 | 10.x | `eslint-config-next` тянет `eslint-plugin-react` 7.37, который под ESLint 10 падает с `contextOrFilename.getFilename is not a function` |
-| Vitest transform | swc | Oxc (дефолт) | Oxc не поддерживает `emitDecoratorMetadata` — см. раздел «Тесты» |
+| Пакет            | Стоит  | В npm latest | Почему заморожен                                                                                                                        |
+| ---------------- | ------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| typescript       | 5.9.3  | 7.0.2        | NestJS 11 заявляет только `^5.7.3`; поддержка `emitDecoratorMetadata` в нативном tsgo не подтверждена — без неё ломается DI             |
+| eslint           | 9.39.5 | 10.x         | `eslint-config-next` тянет `eslint-plugin-react` 7.37, который под ESLint 10 падает с `contextOrFilename.getFilename is not a function` |
+| Vitest transform | swc    | Oxc (дефолт) | Oxc не поддерживает `emitDecoratorMetadata` — см. раздел «Тесты»                                                                        |
 
 Общий знаменатель: экосистема декораторов (Nest) отстаёт от новых компиляторов.
 
@@ -205,7 +206,7 @@ value» в начале лога. Лечится запуском с `NODE_ENV=p
    эта папка в `.gitignore` и пересоздаётся через `npm run db:generate`.
 3. **Driver adapter обязателен.** `new PrismaClient()` без адаптера не стартует. Единственная
    точка создания клиента — `createPrismaClient()` в `packages/db/src/client.ts` (оборачивает
-   `PrismaPg`). В Nest он доступен как `PrismaService.client` — сервис *содержит* клиент,
+   `PrismaPg`). В Nest он доступен как `PrismaService.client` — сервис _содержит_ клиент,
    а не наследует его.
 4. **Граница ESM/CJS.** Prisma 7 — ESM-first, NestJS — CommonJS. Поэтому в генераторе явно
    стоят `moduleFormat = "cjs"` и `importFileExtension = "js"`. Импорты внутри `packages/db`
@@ -237,8 +238,9 @@ E2E повторяют конфигурацию из `main.ts` (`setGlobalPrefix
 даже без секрета в окружении. Токены в тестах не подделываются руками — они получаются
 настоящей регистрацией через `POST /api/auth/register` и передаются как `Authorization: Bearer`.
 
-Сервисы тестируются с мокнутым `PrismaService` (см. `expenses.service.spec.ts`): мок повторяет
-структуру `{ client: { expense: {...} } }`, а `Decimal` подменяется объектом с методом `toFixed`.
+Сервисы тестируются с мокнутым `PrismaService` (см. `transactions.service.spec.ts`): мок повторяет
+структуру `{ client: { transaction: {...}, category: {...} } }`, а денежные суммы задаются реальным
+`Prisma.Decimal` (у него есть `toFixed`/`minus`, нужные для сериализации и расчёта `balance`).
 `AuthService` тестируется тем же приёмом, но мокаются `CommandBus`/`QueryBus`/`JwtService`
 (`auth.service.spec.ts`) — до Prisma тест не доходит, проверяется, что в шину ушла нужная
 команда и что хэш пароля не утекает в ответ.
@@ -268,24 +270,25 @@ Next 16 отдаёт flat-config напрямую), `apps/api/eslint.config.mjs`
   `ZodValidationPipe` вешается **на параметр** — `@Body(new ZodValidationPipe(schema))`.
   Через `@UsePipes(...)` на методе он применится ко всем аргументам, включая `userId` из query,
   и упадёт с «expected object, received string». Этот баг уже был; e2e его теперь ловят.
-  **Исключение — модуль `categories`:** по явному решению он валидируется через **class-validator**
-  (DTO-классы в `apps/api/src/categories/dto/`) и глобальный `ValidationPipe`, включённый в
-  `main.ts` (`whitelist`, `forbidNonWhitelisted`, `transform`). Глобальный пайп не ломает
-  zod-контроллеры (auth, expenses): их `@Body`-типы — это `z.infer`-алиасы, в рантайме метатип
-  `Object`, и `ValidationPipe` их пропускает. e2e категорий бутстрапят тот же `ValidationPipe`,
-  иначе тестируется не то приложение, что в проде. Для новых модулей по-прежнему предпочитайте zod —
-  class-validator здесь единичное отступление, а не новый стандарт.
+  **Исключение — модули `categories` и `transactions`:** по явному решению они валидируются через
+  **class-validator** (DTO-классы в `apps/api/src/{categories,transactions}/dto/`) и глобальный
+  `ValidationPipe`, включённый в `main.ts` (`whitelist`, `forbidNonWhitelisted`, `transform`).
+  Глобальный пайп не ломает zod-контроллеры (auth): их `@Body`-типы — это `z.infer`-алиасы, в
+  рантайме метатип `Object`, и `ValidationPipe` их пропускает. e2e этих модулей бутстрапят тот же
+  `ValidationPipe`, иначе тестируется не то приложение, что в проде. Для новых модулей по-прежнему
+  предпочитайте zod — class-validator здесь осознанное отступление, а не новый стандарт.
 - **Денежные суммы — строки в API.** В БД это `Decimal(12,2)`, наружу отдаются
   как `amount.toFixed(2)`: JSON-число теряет точность на копейках. Не меняйте на `number`.
-- **userId берётся из токена, а не из query.** Все эндпоинты `/api/expenses` закрыты
+- **userId берётся из токена, а не из query.** Все эндпоинты `/api/transactions` закрыты
   `@UseGuards(JwtAuthGuard)` на уровне контроллера, `userId` приходит через `@CurrentUser()`
   (декоратор достаёт `request.user.userId`, который проставил `JwtStrategy.validate`).
-  Прежний `?userId=` удалён — не возвращайте его: это позволяло читать чужие расходы.
+  Query-параметры (`dateFrom/dateTo/type/categoryId`, `month/year`) — только фильтры, не userId.
+  Не возвращайте `?userId=`: это позволяло бы читать чужие транзакции.
   `ParseUUIDPipe` остаётся только для `:id` в пути. Изоляция пользователей держится на фильтре
   по `userId` в сервисе и покрыта e2e — не сломайте её.
 - **Новый защищённый контроллер = `@UseGuards(JwtAuthGuard)` + импорт `AuthModule`.**
   Guard экспортируется из `AuthModule` (`exports: [JwtAuthGuard]`), поэтому модуль-потребитель
-  обязан его импортировать — так сделано в `expenses.module.ts`. Глобального guard'а нет:
+  обязан его импортировать — так сделано в `transactions.module.ts`. Глобального guard'а нет:
   `/api/auth/register` и `/api/auth/login` должны оставаться публичными.
 - **Пароль — максимум 72 символа.** Ограничение в `registerSchema` не декоративное: bcrypt
   молча обрезает всё после 72 байт, поэтому длинные пароли принимать нельзя. Хэш никогда не
@@ -294,3 +297,12 @@ Next 16 отдаёт flat-config напрямую), `apps/api/eslint.config.mjs`
 - **Tailwind 4 без `tailwind.config.js`.** Тема и токены объявлены прямо в
   `apps/web/src/app/globals.css` (`@theme inline`, CSS-переменные). Компоненты shadcn/ui
   добавляются командой `npx shadcn@latest add <component>` в `apps/web`.
+
+  ## Соглашение о коммитах
+
+  Используй Conventional Commits:
+
+- Тип: feat, fix, docs, refactor, test, ci
+- Область (scope): модуль или область изменений
+- Описание на английском, кратко
+- Breaking changes помечай восклицательным знаком

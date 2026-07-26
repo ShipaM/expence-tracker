@@ -36,7 +36,7 @@ describe("Categories (e2e)", () => {
       .expect(201);
 
   beforeEach(async () => {
-    await prisma.client.expense.deleteMany();
+    await prisma.client.transaction.deleteMany();
     await prisma.client.category.deleteMany();
     await prisma.client.user.deleteMany();
 

@@ -119,7 +119,7 @@ app.setGlobalPrefix("api");
 app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
 ```
 CORS разрешает origin фронта (на случай прямых запросов). Глобальный `ValidationPipe` нужен
-модулю `categories` (class-validator) и **не мешает** zod-контроллерам auth/expenses.
+модулям `categories` и `transactions` (class-validator) и **не мешает** zod-контроллерам auth.
 
 ---
 
@@ -396,8 +396,9 @@ curl -s -X POST http://localhost:3001/api/auth/register \
   истечении `/me` вернёт `401`, и пользователь окажется «разлогинен» — тихого обновления нет.
 - **Приватные маршруты пока не защищены** глобально: `proxy.ts` лишь уводит залогиненного со
   страниц входа. Защита будущих приватных страниц — отдельная задача.
-- **`shared/api/expenses.ts`** всё ещё ходит с `?userId=` (перенос из старого `lib/api.ts`) и
-  нигде не используется — перевод на Bearer из сессии запланирован отдельно.
+- **Фронтенд транзакций ещё не сделан.** API-модуль `transactions` (`/api/transactions` +
+  `/summary`, Bearer из токена) готов и покрыт тестами; страница и фичи FSD под него —
+  отдельная задача.
 
 ---
 

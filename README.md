@@ -11,7 +11,7 @@
 | Фронтенд | Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui |
 | Бэкенд | NestJS 11 |
 | БД / ORM | PostgreSQL 18, Prisma 7 (driver adapter `@prisma/adapter-pg`) |
-| Валидация | zod 4 (общие схемы в `@repo/shared`) |
+| Валидация | zod 4 (auth, общие схемы в `@repo/shared`) + class-validator (`categories`, `transactions`) |
 
 ## Структура
 

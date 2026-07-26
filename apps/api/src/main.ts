@@ -11,10 +11,14 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
   app.setGlobalPrefix("api");
-  // class-validator для DTO-классов (категории). zod-контроллеры (auth, expenses) не
+  // class-validator для DTO-классов (категории, транзакции). zod-контроллеры (auth) не
   // затрагиваются: их @Body-типы — z.infer-алиасы, в рантайме метатип Object, и пайп их пропускает.
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    new ValidationPipe({
+      whitelist: true, // вырезает из payload поля, которых нет в DTO (нет декоратора валидации)
+      forbidNonWhitelisted: true, // и не просто вырезает, а бросает 400, если такие поля пришли
+      transform: true, // приводит payload к типу DTO-класса (plain object → instance) и кастит примитивы
+    }),
   );
 
   const port = Number(process.env.PORT ?? 3001);

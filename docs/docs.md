@@ -99,7 +99,7 @@ expence-tracker/
 │   │       ├── shared/                ← Переиспользуемое без домена.
 │   │       │   ├── ui/                   ← shadcn/ui (button, input, card, form…). Сюда кладёт `npx shadcn add`.
 │   │       │   ├── lib/utils.ts          ← cn() для склейки классов Tailwind.
-│   │       │   ├── api/                  ← Серверные клиенты к Nest: nest.ts, auth.server.ts, expenses.ts.
+│   │       │   ├── api/                  ← Серверные клиенты к Nest: nest.ts, auth.server.ts.
 │   │       │   └── config/cookie.ts      ← Имя и опции httpOnly-куки session.
 │   │       └── components/ui/.gitkeep ← [устар.] Пустой остаток: shadcn переехал в shared/ui.
 │   │
@@ -118,7 +118,7 @@ expence-tracker/
 │       │   ├── main.ts                 ← ТОЧКА ВХОДА. Поднимает сервер, включает CORS,
 │       │   │                              ставит глобальный префикс /api, слушает порт 3001.
 │       │   ├── app.module.ts            ← Корневой модуль: собирает все части приложения
-│       │   │                              (Config, Prisma, Auth, Users, Expenses, Categories) в одно целое.
+│       │   │                              (Config, Prisma, Auth, Users, Transactions, Categories) в одно целое.
 │       │   ├── common/
 │       │   │   └── zod-validation.pipe.ts ← «Труба» валидации: проверяет тело запроса
 │       │   │                                 zod-схемой из @repo/shared перед попаданием в код.
@@ -130,13 +130,14 @@ expence-tracker/
 │       │   ├── users/                   ← Хранение пользователей (repo→service→CQRS-хэндлеры), без контроллера.
 │       │   │                              Граница Users↔Auth — через CQRS-шину, а не импорт сервисов (см. CLAUDE.md).
 │       │   ├── categories/             ← CRUD категорий под JwtAuthGuard (валидация тут на class-validator).
-│       │   └── expenses/                ← ФИЧА «расходы» — образец, как устроена фича в Nest (под JwtAuthGuard):
-│       │       ├── expenses.module.ts   ← Склеивает контроллер и сервис этой фичи.
-│       │       ├── expenses.controller.ts ← HTTP GET/POST/PATCH/DELETE /api/expenses; userId — из токена (@CurrentUser).
-│       │       ├── expenses.service.ts    ← Бизнес-логика: ходит в БД через Prisma, готовит ответ.
-│       │       └── expenses.service.spec.ts ← Юнит-тесты сервиса (с замоканным Prisma).
+│       │   └── transactions/            ← ЦЕНТРАЛЬНАЯ ФИЧА «транзакции» (доходы/расходы, под JwtAuthGuard):
+│       │       ├── transactions.module.ts   ← Склеивает контроллер и сервис этой фичи.
+│       │       ├── transactions.controller.ts ← HTTP CRUD /api/transactions + /summary; userId — из токена (@CurrentUser).
+│       │       ├── transactions.service.ts    ← Бизнес-логика: ходит в БД через Prisma, готовит ответ.
+│       │       ├── dto/                        ← class-validator DTO (create/update/query/summary).
+│       │       └── transactions.service.spec.ts ← Юнит-тесты сервиса (с замоканным Prisma).
 │       └── test/
-│           ├── expenses.e2e-spec.ts     ← e2e-тесты: гоняют реальный HTTP + реальную тестовую БД.
+│           ├── transactions.e2e-spec.ts ← e2e-тесты: гоняют реальный HTTP + реальную тестовую БД.
 │           ├── global-setup.ts           ← Создаёт тестовую БД и накатывает миграции перед тестами.
 │           └── test-db-url.ts             ← Вычисляет имя тестовой БД (…_test).
 │
@@ -147,7 +148,7 @@ expence-tracker/
     │   ├── tsconfig.json
     │   ├── vitest.config.ts
     │   └── src/
-    │       ├── index.ts            ← zod-схемы (createExpenseSchema…) и типы (ExpenseDto…).
+    │       ├── index.ts            ← zod-схемы (createCategorySchema, auth…) и типы (TransactionDto…).
     │       │                          Ровно это импортируют и web, и api.
     │       └── index.spec.ts        ← Тесты zod-схем.
     │
@@ -156,7 +157,7 @@ expence-tracker/
         ├── prisma.config.ts        ← Prisma 7: тут задаётся DATABASE_URL (а НЕ в schema.prisma).
         ├── tsconfig.json
         ├── prisma/
-        │   ├── schema.prisma        ← Описание таблиц: User, Category, Expense + enum ExpenseType.
+        │   ├── schema.prisma        ← Описание таблиц: User, Category, Transaction + enum TransactionType.
         │   └── migrations/          ← История изменений БД в SQL. init/ = первое создание таблиц.
         └── src/
             ├── client.ts            ← createPrismaClient(): единственное место создания клиента
@@ -239,7 +240,7 @@ node_modules/@repo/shared → packages/shared
 Поэтому в коде можно писать:
 
 ```ts
-import { createExpenseSchema } from "@repo/shared"; // на самом деле packages/shared
+import { createCategorySchema } from "@repo/shared"; // на самом деле packages/shared
 import { createPrismaClient } from "@repo/db"; // на самом деле packages/db
 ```
 
@@ -525,7 +526,7 @@ docker-compose.yml                    DATABASE_URL=postgresql://…@localhost:54
 
 Типичный порядок первого запуска:
 1. `docker compose up -d` — подняли базу.
-2. `npm run db:migrate` — Prisma создала таблицы (`users`, `categories`, `expenses`).
+2. `npm run db:migrate` — Prisma создала таблицы (`users`, `categories`, `transactions`).
 3. `npm run dev` — стартовали бэк и фронт, которые уже работают с живой базой.
 
 Если что-то с данными «не сходится» — первым делом проверяй, что подключение идёт
@@ -576,12 +577,12 @@ Next Route Handler
 - **`@repo/db`** — бэк не создаёт Prisma-клиент сам, а берёт готовую фабрику из
   библиотеки. Единая точка настройки подключения.
 
-> Путь для **расходов** будет такой же формы, но пока не собран на фронте: эндпоинты
-> `/api/expenses` на стороне API готовы и закрыты `JwtAuthGuard` — `userId` берётся из
-> токена (через `@CurrentUser()`), **а не** из query `?userId=` (тот удалён как дыра
-> изоляции). Фронтовый клиент `shared/api/expenses.ts` пока временный и переключится на
-> Bearer из сессии отдельной задачей. Денежная сумма `amount` при этом отдаётся наружу
-> строкой (`toFixed(2)`), чтобы не терять копейки на JSON-числах.
+> Путь для **транзакций** будет такой же формы, но пока не собран на фронте: эндпоинты
+> `/api/transactions` (CRUD + `/summary`) на стороне API готовы и закрыты `JwtAuthGuard` —
+> `userId` берётся из токена (через `@CurrentUser()`), **а не** из query (там только фильтры
+> `dateFrom/dateTo/type/categoryId` и `month/year`). Фронтовый клиент под транзакции — отдельной
+> задачей. Денежная сумма `amount` при этом отдаётся наружу строкой (`toFixed(2)`), чтобы не
+> терять копейки на JSON-числах.
 
 Вот ради этого «переиспользования одного кода в разных местах» и затевается монорепо
 с `packages/`, а Turborepo следит, чтобы всё собралось в правильном порядке.
@@ -596,8 +597,8 @@ Next Route Handler
 | Добавить страницу/маршрут                   | `apps/web/src/app/**/page.tsx` → делегирует в `views` |
 | Добавить серверный запрос к Nest с фронта   | `apps/web/src/shared/api/*` (nest.ts, auth.server.ts) |
 | Тронуть авторизацию на фронте (куки/сессия) | `entities/session/*`, `app/api/auth/*`, `shared/config/cookie.ts` |
-| Добавить/изменить HTTP-эндпоинт             | `apps/api/src/expenses/expenses.controller.ts`      |
-| Изменить бизнес-логику расходов             | `apps/api/src/expenses/expenses.service.ts`         |
+| Добавить/изменить HTTP-эндпоинт             | `apps/api/src/transactions/transactions.controller.ts` |
+| Изменить бизнес-логику транзакций           | `apps/api/src/transactions/transactions.service.ts`    |
 | Поменять правила валидации/типы             | `packages/shared/src/index.ts`                      |
 | Изменить структуру таблиц БД                | `packages/db/prisma/schema.prisma` + новая миграция |
 | Настроить порядок/кэш сборки                | `turbo.json`                                        |
@@ -681,7 +682,7 @@ Next-сервером, а тот уже ходит в Nest. Зачем усло�
 - **Task runner** — инструмент, запускающий задачи в правильном порядке (Turborepo).
 - **`dependsOn` / `^`** — «сначала выполни у зависимостей, потом у меня».
 - **DTO** — Data Transfer Object, объект-описание данных, которыми обмениваются
-  фронт и бэк (`ExpenseDto` в `@repo/shared`).
+  фронт и бэк (`TransactionDto` в `@repo/shared`).
 - **Миграция** — записанное в SQL изменение структуры БД (папка `prisma/migrations`).
 - **Driver adapter** — обязательная в Prisma 7 прослойка между клиентом и драйвером
   PostgreSQL (`PrismaPg` в `packages/db/src/client.ts`).

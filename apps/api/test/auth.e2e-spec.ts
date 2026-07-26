@@ -27,7 +27,7 @@ describe("Auth (e2e)", () => {
   });
 
   beforeEach(async () => {
-    await prisma.client.expense.deleteMany();
+    await prisma.client.transaction.deleteMany();
     await prisma.client.category.deleteMany();
     await prisma.client.user.deleteMany();
   });
