@@ -46,13 +46,13 @@
 - [x] A7. `typecheck` ✅ + юнит ✅ (17) + e2e ✅ (18)
 
 Часть B — фронтенд FSD (один коммит `feat(web)`):
-- [ ] B1. `entities/transaction` (`transactions.server.ts`, `lib/format.ts`, `index.ts`, `server.ts`)
-- [ ] B2. `widgets/user-profile`
-- [ ] B3. `widgets/main-menu`
-- [ ] B4. `widgets/recent-transactions` (список + строка + пагинатор)
-- [ ] B5. `views/home`
-- [ ] B6. `app/page.tsx` — гейт + делегирование
-- [ ] B7. `build @repo/shared` + `build @repo/web` (`NODE_ENV=production`) + ручная проверка
+- [x] B1. `entities/transaction` (`transactions.server.ts`, `lib/format.ts`, `index.ts`, `server.ts`)
+- [x] B2. `widgets/user-profile`
+- [x] B3. `widgets/main-menu`
+- [x] B4. `widgets/recent-transactions` (список + строка + пагинатор)
+- [x] B5. `views/home`
+- [x] B6. `app/page.tsx` — гейт + делегирование
+- [~] B7. typecheck ✅ + lint ✅ (без новых замечаний) + build ✅ (`/` → dynamic). Ручной smoke — не прогонялся
 
 ---
 

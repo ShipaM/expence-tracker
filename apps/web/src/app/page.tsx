@@ -1,13 +1,19 @@
-import { AuthStatus } from "@/widgets/auth-status";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
-  return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-4 px-6 py-16">
-      <h1 className="text-3xl font-semibold tracking-tight">Трекер расходов</h1>
-      <p className="text-muted-foreground">
-        Каркас проекта готов. Дальше: список расходов, форма добавления и сводка по категориям.
-      </p>
-      <AuthStatus />
-    </main>
-  );
+import { getSession } from "@/entities/session/server";
+import { HomePage } from "@/views/home";
+
+/**
+ * Главный экран. Гейт по getSession() (источник истины, как в гардах /login и /register):
+ * гостя уводим на /login. Пагинация списка — через ?page=N (серверный перефетч).
+ */
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  if (!(await getSession())) redirect("/login");
+
+  const page = Math.max(1, Number((await searchParams).page) || 1);
+  return <HomePage page={page} />;
 }
