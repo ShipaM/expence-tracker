@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { getTransactions } from "@/entities/transaction/server";
 import {
   Card,
@@ -18,6 +20,11 @@ export async function RecentTransactions({ page }: { page: number }) {
     page,
     limit: PAGE_SIZE,
   });
+
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  // Запрос за пределом диапазона (напр. /?page=99): уводим на последнюю валидную
+  // страницу, чтобы URL совпадал с содержимым и не было «Страница 99 из 2» над пустым списком.
+  if (current > totalPages) redirect(`/?page=${totalPages}`);
 
   return (
     <Card>
