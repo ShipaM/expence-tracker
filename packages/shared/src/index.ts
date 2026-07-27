@@ -29,6 +29,14 @@ export interface TransactionDto {
   createdAt: string;
 }
 
+/** Пагинированный список транзакций: обёртка над items + метаданные страницы. */
+export interface PaginatedTransactionsDto {
+  items: TransactionDto[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface TransactionSummaryDto {
   income: string;
   expense: string;

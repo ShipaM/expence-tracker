@@ -298,11 +298,83 @@ Next 16 отдаёт flat-config напрямую), `apps/api/eslint.config.mjs`
   `apps/web/src/app/globals.css` (`@theme inline`, CSS-переменные). Компоненты shadcn/ui
   добавляются командой `npx shadcn@latest add <component>` в `apps/web`.
 
+## Работа с ветками (GitHub Flow)
+
+Модель — **GitHub Flow**: `master` всегда в рабочем, деплоимом состоянии; прямых коммитов в
+`master` нет. Любая работа идёт в отдельной ветке от свежего `master` и вливается обратно
+через Pull Request после ревью.
+
+- **Именование:** `<тип>/<краткое-описание-через-дефис>`, где тип совпадает с Conventional
+  Commits (`feat`, `fix`, `docs`, `refactor`, `test`, `ci`). Пример текущей ветки —
+  `feature/main-screen`. Описание на английском (кроме уже заведённой ветки), в kebab-case.
+- **Старт фичи:** ветвиться от актуального `master`:
+  ```bash
+  git checkout master && git pull
+  git checkout -b feat/<название>
+  ```
+- **Ветка живёт недолго и решает одну задачу.** Регулярно подтягивай `master`, чтобы
+  расхождение не копилось.
+- **Вливание — только через PR.** Прямой merge/push в `master` не делаем; PR проходит ревью,
+  зелёные проверки (`typecheck`, `lint`, тесты), затем squash-merge. После слияния ветку удаляем.
+- Коммиты внутри ветки — по [соглашению о коммитах](#соглашение-о-коммитах) ниже.
+
+## Pull Request
+
+PR — единственный способ попасть в `master`. Перед созданием прогони локально то, что
+проверяет ревью: `npm run typecheck`, `npm run lint`, `npm test` (и `npm run test:e2e`,
+если трогал API — нужен поднятый контейнер).
+
+**Заголовок — по Conventional Commits**, как коммит: `<тип>(<scope>): <описание на английском>`.
+Если в ветке есть breaking change (напр. изменился формат ответа эндпоинта) — восклицательный
+знак в заголовке PR: `feat(api)!: ...`. Scope у сборной ветки — область целиком (`web`, `api`)
+или несколько через запятую.
+
+**Описание — на английском, по структуре** (заголовки секций и текст — на английском):
+
+```markdown
+## Summary
+
+<2–3 sentences: what task the branch solves>
+
+## API
+
+<new/changed endpoints: method, path, params, response shape; if API untouched — drop the section>
+
+## Frontend
+
+<new pages/FSD slices and what they do; if untouched — drop the section>
+
+## Breaking changes
+
+<what breaks for consumers and what they must fix; if none — drop the section>
+
+## Testing
+
+<which commands were run and with what result>
+```
+
+Смотри `git diff master...HEAD` (три точки — только изменения ветки, без ушедшего вперёд
+`master`), а не `git diff master`.
+
+**Создание — через `gh`.** В PATH Git Bash его нет, вызывай по полному пути; тело передавай
+файлом, а не `--body` со строкой (иначе многострочный markdown ломается в PowerShell):
+
+```bash
+git push -u origin <branch>
+"/c/Program Files/GitHub CLI/gh.exe" pr create --base master --head <branch> \
+  --title "feat(scope): ..." --body-file <файл в скретчпаде>
+```
+
+Мержится PR squash-мержем после зелёных проверок и ревью; ветка после слияния удаляется.
+
   ## Соглашение о коммитах
 
   Используй Conventional Commits:
 
 - Тип: feat, fix, docs, refactor, test, ci
 - Область (scope): модуль или область изменений
-- Описание на английском, кратко
+- Описание на английском, кратко — одно предложение
 - Breaking changes помечай восклицательным знаком
+- **Без футеров и упоминаний Claude/Co-Authored-By.** Сообщение коммита — только
+  заголовок Conventional Commits (при необходимости тело); строку
+  «🤖 Generated with Claude Code» и подобные не добавляй.

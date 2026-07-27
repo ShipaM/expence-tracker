@@ -1,5 +1,6 @@
 import { TransactionType } from "@repo/db";
-import { IsEnum, IsISO8601, IsOptional, IsUUID } from "class-validator";
+import { Type } from "class-transformer";
+import { IsEnum, IsISO8601, IsInt, IsOptional, IsUUID, Max, Min } from "class-validator";
 
 export class QueryTransactionsDto {
   @IsOptional()
@@ -17,4 +18,18 @@ export class QueryTransactionsDto {
   @IsOptional()
   @IsUUID()
   categoryId?: string;
+
+  // Пагинация: page/limit опциональны; дефолты (1/20) проставляет сервис.
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
 }

@@ -2,7 +2,11 @@ import { Injectable, NotFoundException, UnauthorizedException } from "@nestjs/co
 import { QueryBus } from "@nestjs/cqrs";
 import { Prisma } from "@repo/db";
 import type { Category, Transaction, User } from "@repo/db";
-import type { TransactionDto, TransactionSummaryDto } from "@repo/shared";
+import type {
+  PaginatedTransactionsDto,
+  TransactionDto,
+  TransactionSummaryDto,
+} from "@repo/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { GetUserByIdQuery } from "../users/contracts/get-user-by-id.query";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
@@ -18,7 +22,10 @@ export class TransactionsService {
     private readonly queryBus: QueryBus,
   ) {}
 
-  async findAll(userId: string, filters: QueryTransactionsDto): Promise<TransactionDto[]> {
+  async findAll(
+    userId: string,
+    filters: QueryTransactionsDto,
+  ): Promise<PaginatedTransactionsDto> {
     const where: Prisma.TransactionWhereInput = {
       userId,
       ...(filters.type && { type: filters.type }),
@@ -31,13 +38,26 @@ export class TransactionsService {
       }),
     };
 
-    const transactions = await this.prisma.client.transaction.findMany({
-      where,
-      include: { category: true },
-      orderBy: { date: "desc" },
-    });
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
 
-    return transactions.map((transaction) => this.toDto(transaction));
+    const [transactions, total] = await Promise.all([
+      this.prisma.client.transaction.findMany({
+        where,
+        include: { category: true },
+        orderBy: { date: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.client.transaction.count({ where }),
+    ]);
+
+    return {
+      items: transactions.map((transaction) => this.toDto(transaction)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(userId: string, id: string): Promise<TransactionDto> {
