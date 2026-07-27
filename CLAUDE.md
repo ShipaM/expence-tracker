@@ -373,5 +373,8 @@ git push -u origin <branch>
 
 - Тип: feat, fix, docs, refactor, test, ci
 - Область (scope): модуль или область изменений
-- Описание на английском, кратко
+- Описание на английском, кратко — одно предложение
 - Breaking changes помечай восклицательным знаком
+- **Без футеров и упоминаний Claude/Co-Authored-By.** Сообщение коммита — только
+  заголовок Conventional Commits (при необходимости тело); строку
+  «🤖 Generated with Claude Code» и подобные не добавляй.
