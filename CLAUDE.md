@@ -329,28 +329,28 @@ PR — единственный способ попасть в `master`. Пер�
 знак в заголовке PR: `feat(api)!: ...`. Scope у сборной ветки — область целиком (`web`, `api`)
 или несколько через запятую.
 
-**Описание — на русском, по структуре:**
+**Описание — на английском, по структуре** (заголовки секций и текст — на английском):
 
 ```markdown
-## Что сделано
+## Summary
 
-<2–3 предложения: какую задачу решает ветка>
+<2–3 sentences: what task the branch solves>
 
 ## API
 
-<новые/изменённые эндпоинты: метод, путь, параметры, формат ответа; если API не трогали — секцию убрать>
+<new/changed endpoints: method, path, params, response shape; if API untouched — drop the section>
 
-## Фронтенд
+## Frontend
 
-<новые страницы/слайсы FSD и что они делают; если не трогали — убрать>
+<new pages/FSD slices and what they do; if untouched — drop the section>
 
 ## Breaking changes
 
-<что сломается у потребителей и что нужно поправить; если их нет — убрать секцию>
+<what breaks for consumers and what they must fix; if none — drop the section>
 
-## Проверка
+## Testing
 
-<какие команды прогнаны и с каким результатом>
+<which commands were run and with what result>
 ```
 
 Смотри `git diff master...HEAD` (три точки — только изменения ветки, без ушедшего вперёд
