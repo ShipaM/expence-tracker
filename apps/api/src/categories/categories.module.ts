@@ -4,7 +4,13 @@ import { AuthModule } from "../auth/auth.module";
 import { CategoriesController } from "./categories.controller";
 import { CategoriesService } from "./categories.service";
 
-// AuthModule → JwtAuthGuard; CqrsModule → QueryBus (диспетч GetUserByIdQuery в Users).
+/**
+ * Модуль категорий: контроллер `/api/categories` и его сервис.
+ *
+ * `AuthModule` даёт `JwtAuthGuard`, `CqrsModule` — `QueryBus` (через него диспетчится
+ * `GetUserByIdQuery`). `UsersModule` намеренно не импортируется, `PrismaService` приходит
+ * из глобального `PrismaModule`.
+ */
 @Module({
   imports: [AuthModule, CqrsModule],
   controllers: [CategoriesController],

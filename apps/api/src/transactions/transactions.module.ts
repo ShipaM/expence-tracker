@@ -4,7 +4,13 @@ import { AuthModule } from "../auth/auth.module";
 import { TransactionsController } from "./transactions.controller";
 import { TransactionsService } from "./transactions.service";
 
-// AuthModule → JwtAuthGuard; CqrsModule → QueryBus (диспетч GetUserByIdQuery в Users).
+/**
+ * Модуль транзакций: контроллер `/api/transactions` и его сервис.
+ *
+ * `AuthModule` даёт `JwtAuthGuard`, `CqrsModule` — `QueryBus` (через него диспетчится
+ * `GetUserByIdQuery`). `UsersModule` намеренно не импортируется: хэндлеры Users
+ * `CqrsModule` регистрирует глобально. `PrismaService` приходит из глобального `PrismaModule`.
+ */
 @Module({
   imports: [AuthModule, CqrsModule],
   controllers: [TransactionsController],

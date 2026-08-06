@@ -6,10 +6,17 @@ import { GetUserByIdHandler } from "./handlers/get-user-by-id.handler";
 import { UsersRepository } from "./users.repository";
 import { UsersService } from "./users.service";
 
+/** CQRS-хэндлеры модуля; `CqrsModule` регистрирует их глобально. */
 const handlers = [CreateUserHandler, GetUserByEmailHandler, GetUserByIdHandler];
 
-// Наружу торчат только классы-контракт из ./contracts — сервис и репозиторий
-// приватны для модуля, Auth обращается к ним через CommandBus/QueryBus.
+/**
+ * Модуль пользователей: хранение и выдача записей. Контроллера нет — HTTP-поверхности у Users
+ * не существует.
+ *
+ * Наружу торчат только классы-контракты из `./contracts` — сервис и репозиторий приватны для
+ * модуля (в `exports` их нет), остальные модули обращаются к ним через `CommandBus`/`QueryBus`.
+ * Поэтому импортировать `UsersModule` откуда-либо не нужно.
+ */
 @Module({
   imports: [CqrsModule],
   providers: [UsersRepository, UsersService, ...handlers],
