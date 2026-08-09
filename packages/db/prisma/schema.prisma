@@ -16,6 +16,14 @@ enum TransactionType {
   EXPENSE
 }
 
+/// Периодичность регулярного платежа: как часто он повторяется.
+enum PaymentPeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
 model User {
   id           String     @id @default(uuid()) @db.Uuid
   email        String     @unique
@@ -26,6 +34,7 @@ model User {
 
   categories   Category[]
   transactions Transaction[]
+  payments     Payment[]
 
   @@map("users")
 }
@@ -39,6 +48,7 @@ model Category {
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  payments     Payment[]
 
   @@unique([userId, name])
   @@map("categories")
@@ -60,4 +70,30 @@ model Transaction {
   @@index([userId, date])
   @@index([categoryId])
   @@map("transactions")
+}
+
+/// Регулярный платёж: шаблон повторяющейся операции (подписка, аренда, зарплата).
+/// Сам по себе денег не двигает — при отметке об оплате из него создаётся Transaction,
+/// а nextDueDate сдвигается на период вперёд.
+model Payment {
+  id          String          @id @default(uuid()) @db.Uuid
+  name        String
+  amount      Decimal         @db.Decimal(12, 2)
+  type        TransactionType
+  period      PaymentPeriod
+  nextDueDate DateTime
+  isActive    Boolean         @default(true)
+  description String?
+  userId      String          @db.Uuid
+  categoryId  String          @db.Uuid
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId, nextDueDate])
+  @@index([categoryId])
+  @@map("payments")
 }

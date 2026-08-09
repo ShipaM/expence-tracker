@@ -5,6 +5,7 @@ import { AuthModule } from "./auth/auth.module";
 import { UsersModule } from "./users/users.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 import { CategoriesModule } from "./categories/categories.module";
+import { PaymentsModule } from "./payments/payments.module";
 
 /**
  * Корневой модуль приложения.
@@ -29,6 +30,7 @@ import { CategoriesModule } from "./categories/categories.module";
     AuthModule,
     TransactionsModule,
     CategoriesModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}
