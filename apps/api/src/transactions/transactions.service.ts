@@ -13,15 +13,36 @@ import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { QueryTransactionsDto } from "./dto/query-transactions.dto";
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 
+/** Транзакция вместе с подгруженной категорией — форма, из которой собирается {@link TransactionDto}. */
 type TransactionWithCategory = Transaction & { category: Category };
 
+/**
+ * Доступ к транзакциям пользователя: CRUD и месячная агрегация.
+ *
+ * Изоляция пользователей держится на фильтре по `userId` в каждом запросе —
+ * `userId` приходит из JWT (см. `CurrentUser`), а не из параметров запроса.
+ * Денежные суммы наружу отдаются строками (`Decimal.toFixed(2)`).
+ */
 @Injectable()
 export class TransactionsService {
+  /**
+   * @param prisma Доступ к Prisma-клиенту (`prisma.client`).
+   * @param queryBus Шина запросов CQRS: через неё проверяется существование пользователя,
+   *   без прямого импорта `UsersModule`.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly queryBus: QueryBus,
   ) {}
 
+  /**
+   * Возвращает страницу транзакций пользователя, отсортированных по дате (сначала новые).
+   *
+   * @param userId Идентификатор пользователя из токена.
+   * @param filters Фильтры (`dateFrom`, `dateTo`, `type`, `categoryId`) и пагинация;
+   *   пустые поля не участвуют в запросе, дефолты — `page = 1`, `limit = 20`.
+   * @returns Список транзакций с категориями плюс `total`, `page`, `limit`.
+   */
   async findAll(
     userId: string,
     filters: QueryTransactionsDto,
@@ -60,6 +81,15 @@ export class TransactionsService {
     };
   }
 
+  /**
+   * Возвращает одну транзакцию пользователя.
+   *
+   * @param userId Идентификатор пользователя из токена.
+   * @param id Идентификатор транзакции (UUID).
+   * @returns Транзакция с категорией.
+   * @throws {NotFoundException} Транзакции нет или она принадлежит другому пользователю
+   *   (чужая запись неотличима от несуществующей — так не утекает факт её существования).
+   */
   async findOne(userId: string, id: string): Promise<TransactionDto> {
     const transaction = await this.prisma.client.transaction.findFirst({
       where: { id, userId },
@@ -73,6 +103,17 @@ export class TransactionsService {
     return this.toDto(transaction);
   }
 
+  /**
+   * Создаёт транзакцию: сначала проверяет, что пользователь ещё существует, затем — что
+   * категория принадлежит ему.
+   *
+   * @param userId Идентификатор пользователя из токена.
+   * @param dto Данные транзакции; `amount` — строка, `date` — ISO-8601.
+   * @returns Созданная транзакция с категорией.
+   * @throws {UnauthorizedException} Пользователя из токена больше нет в БД (токен живёт 7 дней
+   *   и мог пережить удаление аккаунта).
+   * @throws {NotFoundException} Категория не найдена или принадлежит другому пользователю.
+   */
   async create(userId: string, dto: CreateTransactionDto): Promise<TransactionDto> {
     // CQRS: пользователь мог быть удалён, пока жил его 7-дневный токен.
     const user = await this.queryBus.execute<GetUserByIdQuery, User | null>(
@@ -99,6 +140,16 @@ export class TransactionsService {
     return this.toDto(transaction);
   }
 
+  /**
+   * Частично обновляет транзакцию: в БД уходят только переданные поля.
+   *
+   * @param userId Идентификатор пользователя из токена.
+   * @param id Идентификатор транзакции (UUID).
+   * @param dto Изменяемые поля; отсутствующие (`undefined`) не трогаются.
+   * @returns Обновлённая транзакция с категорией.
+   * @throws {NotFoundException} Транзакция не найдена/чужая, либо новая категория не найдена
+   *   или принадлежит другому пользователю.
+   */
   async update(userId: string, id: string, dto: UpdateTransactionDto): Promise<TransactionDto> {
     await this.findOne(userId, id);
 
@@ -121,11 +172,29 @@ export class TransactionsService {
     return this.toDto(transaction);
   }
 
+  /**
+   * Удаляет транзакцию пользователя.
+   *
+   * @param userId Идентификатор пользователя из токена.
+   * @param id Идентификатор транзакции (UUID).
+   * @returns Ничего: успех — это отсутствие исключения (контроллер отвечает 204).
+   * @throws {NotFoundException} Транзакция не найдена или принадлежит другому пользователю.
+   */
   async remove(userId: string, id: string): Promise<void> {
     await this.findOne(userId, id);
     await this.prisma.client.transaction.delete({ where: { id } });
   }
 
+  /**
+   * Считает итоги пользователя за календарный месяц: доход, расход, баланс и разбивку
+   * по категориям.
+   *
+   * @param userId Идентификатор пользователя из токена.
+   * @param month Месяц, 1–12 (январь — 1).
+   * @param year Год (четыре цифры).
+   * @returns Суммы строками (`toFixed(2)`) и `byCategory` — по паре «категория + тип».
+   *   Месяцы без транзакций дают нули и пустой `byCategory`.
+   */
   async summary(userId: string, month: number, year: number): Promise<TransactionSummaryDto> {
     // Полуинтервал [начало месяца, начало следующего) — по UTC, как хранит Prisma.
     const start = new Date(Date.UTC(year, month - 1, 1));
@@ -170,6 +239,14 @@ export class TransactionsService {
     };
   }
 
+  /**
+   * Проверяет, что категория существует и принадлежит пользователю.
+   *
+   * @param userId Идентификатор пользователя из токена.
+   * @param categoryId Идентификатор проверяемой категории (UUID).
+   * @returns Ничего: успех — это отсутствие исключения.
+   * @throws {NotFoundException} Категории нет или она принадлежит другому пользователю.
+   */
   private async assertCategoryOwned(userId: string, categoryId: string): Promise<void> {
     const category = await this.prisma.client.category.findFirst({
       where: { id: categoryId, userId },
@@ -179,7 +256,14 @@ export class TransactionsService {
     }
   }
 
-  // Decimal сериализуем строкой: JSON-число теряет точность на копейках.
+  /**
+   * Приводит запись Prisma к ответу API.
+   *
+   * Decimal сериализуем строкой: JSON-число теряет точность на копейках. Даты — ISO-8601.
+   *
+   * @param transaction Транзакция с подгруженной категорией (`include: { category: true }`).
+   * @returns DTO транзакции для ответа API.
+   */
   private toDto(transaction: TransactionWithCategory): TransactionDto {
     return {
       id: transaction.id,

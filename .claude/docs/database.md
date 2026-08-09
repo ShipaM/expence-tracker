@@ -1,0 +1,180 @@
+# База данных
+
+PostgreSQL 18 в Docker, ORM — Prisma 7. Схема: `packages/db/prisma/schema.prisma`.
+
+## Подключение
+
+| Параметр | Значение |
+|---|---|
+| Хост:порт | `localhost:5433` (внутри контейнера — 5432) |
+| База | `expence_tracker` |
+| База для e2e | `expence_tracker_test` |
+| Контейнер | `expence-tracker-db`, образ `postgres:18-alpine` |
+| Том | `postgres-data` → `/var/lib/postgresql` |
+
+**Порт 5433, а не 5432.** На хосте 5432 занимает локальная служба `postgresql-x64-18`. Windows
+разрешает Docker-прокси занять уже слушающий порт молча: контейнер рапортует
+`0.0.0.0:5432->5432/tcp` и выглядит здоровым, но подключения на `localhost:5432` уходят в
+локальную службу. Если данные «пропадают» или таблиц нет там, где ожидаются, — сначала
+проверьте, к какому порту вы подключились.
+
+Том монтируется в `/var/lib/postgresql`, а не в `.../data`: в `postgres:18+` образ сам кладёт
+данные в подкаталог с именем мажорной версии.
+
+## Схема
+
+```
+User ──1:N──► Category ──1:N──► Transaction
+ │             └───────1:N──────► Payment
+ ├─────────────────1:N───────────► Transaction
+ └─────────────────1:N───────────► Payment
+```
+
+Все связи — `onDelete: Cascade`: удаление пользователя уносит его категории и транзакции,
+удаление категории — её транзакции.
+
+### `users`
+
+| Поле | Тип | Атрибуты | Назначение |
+|---|---|---|---|
+| `id` | `String @db.Uuid` | PK, `@default(uuid())` | идентификатор |
+| `email` | `String` | `@unique` | логин; уникальность даёт `P2002` → 409 |
+| `name` | `String?` | | отображаемое имя, может отсутствовать |
+| `passwordHash` | `String` | | bcrypt-хэш; **никогда не покидает бэкенд** |
+| `createdAt` | `DateTime` | `@default(now())` | момент регистрации |
+| `updatedAt` | `DateTime` | `@updatedAt` | момент последнего изменения |
+
+Наружу отдаётся только `UserDto { id, email, name }` — собирается в `AuthService.toUserDto`.
+
+### `categories`
+
+| Поле | Тип | Атрибуты | Назначение |
+|---|---|---|---|
+| `id` | `String @db.Uuid` | PK, `@default(uuid())` | идентификатор |
+| `name` | `String` | | название; 1–60 символов на уровне DTO |
+| `color` | `String` | `@default("#6366f1")` | HEX-цвет `#a1b2c3` для UI |
+| `icon` | `String?` | | имя иконки, до 40 символов; необязательно |
+| `userId` | `String @db.Uuid` | FK → `users.id` | владелец |
+
+Ограничение `@@unique([userId, name])`: имя уникально **в пределах пользователя**, а не
+глобально. Нарушение даёт `P2002` → `ConflictException` (409).
+
+### `transactions`
+
+| Поле | Тип | Атрибуты | Назначение |
+|---|---|---|---|
+| `id` | `String @db.Uuid` | PK, `@default(uuid())` | идентификатор |
+| `amount` | `Decimal @db.Decimal(12,2)` | | сумма; наружу строкой (`toFixed(2)`) |
+| `type` | `TransactionType` | | `INCOME` или `EXPENSE` |
+| `description` | `String?` | | комментарий, до 500 символов |
+| `date` | `DateTime` | | дата операции — задаётся пользователем |
+| `userId` | `String @db.Uuid` | FK → `users.id` | владелец |
+| `categoryId` | `String @db.Uuid` | FK → `categories.id` | категория |
+| `createdAt` | `DateTime` | `@default(now())` | момент создания записи |
+
+`date` и `createdAt` — разные вещи: первая может быть в прошлом, вторая ставится системой.
+Агрегация `/summary` считает по `date`.
+
+Индексы: `@@index([userId, date])` — под основной сценарий (список пользователя, отсортированный
+по дате) и `@@index([categoryId])` — под фильтр по категории.
+
+**Почему `Decimal`, а не `Float`.** Деньги нельзя хранить в плавающей точке. По API сумма ходит
+строкой, потому что JSON-число тоже теряет точность на копейках. Арифметика — методами
+`Prisma.Decimal` (`minus`, `plus`), не через `Number()`.
+
+### `payments`
+
+Регулярный платёж — шаблон повторяющейся операции (подписка, аренда, зарплата). Денег сам по
+себе не двигает: при отметке об оплате из него создаётся запись в `transactions`, а
+`nextDueDate` сдвигается на период вперёд.
+
+| Поле | Тип | Атрибуты | Назначение |
+|---|---|---|---|
+| `id` | `String @db.Uuid` | PK, `@default(uuid())` | идентификатор |
+| `name` | `String` | | название; 1–60 символов на уровне схемы zod |
+| `amount` | `Decimal @db.Decimal(12,2)` | | сумма списания; наружу строкой |
+| `type` | `TransactionType` | | `INCOME` (зарплата) или `EXPENSE` (подписка) |
+| `period` | `PaymentPeriod` | | периодичность повторения |
+| `nextDueDate` | `DateTime` | | дата ближайшего списания; сдвигается при оплате |
+| `isActive` | `Boolean` | `@default(true)` | выключенный не попадает в прогноз списаний |
+| `description` | `String?` | | комментарий, до 500 символов |
+| `userId` | `String @db.Uuid` | FK → `users.id` | владелец |
+| `categoryId` | `String @db.Uuid` | FK → `categories.id` | категория будущей транзакции |
+| `createdAt` | `DateTime` | `@default(now())` | момент создания |
+| `updatedAt` | `DateTime` | `@updatedAt` | момент последнего изменения |
+
+Ограничение `@@unique([userId, name])` — как у категорий: имя платежа уникально в пределах
+пользователя, чтобы в списке не появлялось двух «Подписок» без различий.
+
+Индексы: `@@index([userId, nextDueDate])` — под список и прогноз ближайших списаний,
+`@@index([categoryId])` — под фильтр по категории.
+
+Связь с транзакцией **не хранится**: созданная транзакция живёт самостоятельно, и удаление
+платежа её не трогает — она факт, а не часть шаблона.
+
+### enum `PaymentPeriod`
+
+`WEEKLY` | `MONTHLY` | `QUARTERLY` | `YEARLY`. Дублируется в `@repo/shared` как
+`PAYMENT_PERIODS`. Сдвиг даты считается по UTC, месячные периоды прижимаются к последнему дню
+короткого месяца (31 января + месяц = 28/29 февраля).
+
+### enum `TransactionType`
+
+`INCOME` | `EXPENSE`. Дублируется в `@repo/shared` как `TRANSACTION_TYPES` — чтобы фронтенд не
+зависел от пакета БД.
+
+## Маппинг имён
+
+В схеме модели названы в единственном числе и PascalCase (`User`, `Category`, `Transaction`), а
+таблицы — во множественном и snake_case через `@@map` (`users`, `categories`, `transactions`).
+В коде используются имена моделей, в SQL и Prisma Studio видны имена таблиц.
+
+## Prisma 7 — отличия от 6
+
+Привычные паттерны Prisma 6 здесь ломаются:
+
+1. **Строка подключения не в схеме.** В блоке `datasource` нет `url` — это намеренно. URL
+   задаётся в `packages/db/prisma.config.ts` через `env("DATABASE_URL")`. `.env` лежит в корне
+   монорепо, а prisma запускается из `packages/db`, поэтому путь к нему прописан явно, плюс
+   `dotenv-expand` разворачивает `${POSTGRES_*}` внутри `DATABASE_URL`.
+2. **Генератор `prisma-client`**, не устаревший `prisma-client-js`; поле `output` обязательно.
+   Клиент генерируется в `packages/db/src/generated` и **не** попадает в `node_modules`. Папка
+   в `.gitignore` — на свежем клоне типы из `@repo/db` не резолвятся, пока не выполнен
+   `npm run db:generate`. Это ожидаемо, а не ошибка.
+3. **Driver adapter обязателен.** `new PrismaClient()` без адаптера не стартует. Единственная
+   точка создания клиента — `createPrismaClient()` в `packages/db/src/client.ts`, оборачивает
+   `PrismaPg`.
+4. **Граница ESM/CJS.** Prisma 7 — ESM-first, а потребитель (`api`) на CommonJS. Поэтому в
+   генераторе стоят `moduleFormat = "cjs"` и `importFileExtension = "js"`, а импорты внутри
+   `packages/db` пишутся с расширением `.js` (`./generated/client.js`), хотя файлы — `.ts`.
+
+В NestJS сервис **содержит** клиент (`PrismaService.client`), а не наследует его — потому что
+клиент приходит из фабрики.
+
+## Миграции
+
+Лежат в `packages/db/prisma/migrations/`:
+
+| Миграция | Что добавила |
+|---|---|
+| `20260714175318_init` | начальная схема |
+| `20260715185940_add_user_password_hash` | `users.passwordHash` |
+| `20260722162110_add_category_icon` | `categories.icon` |
+| `20260723174742_add_transactions` | таблица `transactions` |
+
+Команды — в `dev-guide.md`.
+
+## Состояние данных
+
+БД в контейнере пустая: таблицы созданы, данных нет. Тестовые данные, которые могут встретиться
+в истории, осели в локальной службе PostgreSQL на 5432 — не в контейнере.
+
+## Тестовая база
+
+E2E работают с реальной БД `expence_tracker_test`: `test/global-setup.ts` создаёт её и
+накатывает миграции, таблицы чистятся в `beforeEach`, файлы гоняются последовательно
+(`fileParallelism: false`) — они делят одну базу.
+
+Имя берётся из `TEST_DATABASE_URL`, а если его нет — выводится из `DATABASE_URL` добавлением
+суффикса `_test` (`test/test-db-url.ts`). **Никогда не подставляйте сюда боевую базу**:
+`beforeEach` вызывает `deleteMany()` по всем таблицам.
