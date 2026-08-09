@@ -184,6 +184,24 @@ describe("PaymentsService", () => {
 
       expect(result).toEqual({ items: [], totalIncome: "0.00", totalExpense: "0.00" });
     });
+
+    it("включает платежи с датой, точно совпадающей с границей окна", async () => {
+      const now = Date.now();
+      const days = 7;
+      const exactly = new Date(now + days * 24 * 60 * 60 * 1000);
+
+      prismaMock.client.payment.findMany.mockResolvedValue([
+        { ...paymentRow, nextDueDate: exactly },
+      ]);
+
+      await service.upcoming(USER_ID, days);
+
+      expect(prismaMock.client.payment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ nextDueDate: { lte: exactly } }),
+        }),
+      );
+    });
   });
 
   describe("findOne", () => {
@@ -194,6 +212,16 @@ describe("PaymentsService", () => {
       expect(prismaMock.client.payment.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: PAYMENT_ID, userId: USER_ID } }),
       );
+    });
+
+    it("отдаёт платёж с категорией и суммой строкой", async () => {
+      prismaMock.client.payment.findFirst.mockResolvedValue(paymentRow);
+
+      const result = await service.findOne(USER_ID, PAYMENT_ID);
+
+      expect(result.id).toBe(PAYMENT_ID);
+      expect(result.amount).toBe("299.00");
+      expect(result.category.name).toBe("Подписки");
     });
   });
 
@@ -239,6 +267,24 @@ describe("PaymentsService", () => {
       );
       expect(result.id).toBe(PAYMENT_ID);
     });
+
+    it("проносит необязательные поля description и isActive", async () => {
+      queryBusMock.execute.mockResolvedValue({ id: USER_ID });
+      prismaMock.client.category.findFirst.mockResolvedValue(categoryRow);
+      prismaMock.client.payment.create.mockResolvedValue({
+        ...paymentRow,
+        description: "Семейная подписка",
+        isActive: false,
+      });
+
+      await service.create(USER_ID, { ...dto, description: "Семейная подписка", isActive: false });
+
+      expect(prismaMock.client.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ description: "Семейная подписка", isActive: false }),
+        }),
+      );
+    });
   });
 
   describe("update", () => {
@@ -261,6 +307,27 @@ describe("PaymentsService", () => {
       expect(prismaMock.client.payment.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: PAYMENT_ID }, data: { isActive: false } }),
       );
+    });
+
+    it("обновляет несколько полей одновременно", async () => {
+      prismaMock.client.payment.findFirst.mockResolvedValue(paymentRow);
+      prismaMock.client.payment.update.mockResolvedValue({
+        ...paymentRow,
+        amount: new Prisma.Decimal("399.00"),
+        description: "Обновлённое описание",
+      });
+
+      const result = await service.update(USER_ID, PAYMENT_ID, {
+        amount: "399.00",
+        description: "Обновлённое описание",
+      });
+
+      expect(prismaMock.client.payment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ amount: "399.00", description: "Обновлённое описание" }),
+        }),
+      );
+      expect(result.amount).toBe("399.00");
     });
   });
 
@@ -308,6 +375,17 @@ describe("PaymentsService", () => {
       const createCall = prismaMock.client.transaction.create.mock.calls[0]?.[0];
       expect(createCall.data.description).toBe("Подписка на музыку");
     });
+
+    it("оставляет своё описание платежа, если оно есть", async () => {
+      const paymentWithDesc = { ...paymentRow, description: "Spotify семейная" };
+      prismaMock.client.payment.findFirst.mockResolvedValue(paymentWithDesc);
+      prismaMock.client.$transaction.mockResolvedValue([transactionRow, paymentWithDesc]);
+
+      await service.pay(USER_ID, PAYMENT_ID);
+
+      const createCall = prismaMock.client.transaction.create.mock.calls[0]?.[0];
+      expect(createCall.data.description).toBe("Spotify семейная");
+    });
   });
 
   describe("remove", () => {
@@ -316,6 +394,15 @@ describe("PaymentsService", () => {
 
       await expect(service.remove(USER_ID, PAYMENT_ID)).rejects.toBeInstanceOf(NotFoundException);
       expect(prismaMock.client.payment.delete).not.toHaveBeenCalled();
+    });
+
+    it("удаляет платёж пользователя", async () => {
+      prismaMock.client.payment.findFirst.mockResolvedValue(paymentRow);
+      prismaMock.client.payment.delete.mockResolvedValue(paymentRow);
+
+      await service.remove(USER_ID, PAYMENT_ID);
+
+      expect(prismaMock.client.payment.delete).toHaveBeenCalledWith({ where: { id: PAYMENT_ID } });
     });
   });
 });

@@ -193,11 +193,12 @@ Tailwind 4 без `tailwind.config.js` — тема и токены в `src/app/
 ```bash
 npm run typecheck --workspace @repo/web
 npm run lint --workspace @repo/web
+npm run test --workspace @repo/web
 npm run dev --workspace @repo/web
 ```
 
-Тестов у `web` пока нет; для компонентных понадобятся `@testing-library/react` и
-`environment: "jsdom"`.
+Компонентные тесты — Vitest + Testing Library в окружении `jsdom`, файл `*.spec.tsx` рядом
+с компонентом. Образец — `src/shared/ui/button.spec.tsx`.
 
 ---
 
