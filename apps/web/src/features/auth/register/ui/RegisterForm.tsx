@@ -13,6 +13,7 @@ import {
   FormMessage,
 } from "@/shared/ui/form";
 import { Input } from "@/shared/ui/input";
+import { PasswordInput } from "@/shared/ui/password-input";
 
 import { useRegister } from "../model/use-register";
 
@@ -61,7 +62,7 @@ export function RegisterForm() {
             <FormItem>
               <FormLabel>Пароль</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="new-password" {...field} />
+                <PasswordInput autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
