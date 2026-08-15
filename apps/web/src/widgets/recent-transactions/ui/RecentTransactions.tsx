@@ -1,13 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getTransactions } from "@/entities/transaction/server";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 
 import { Pagination } from "./Pagination";
 import { TransactionRow } from "./TransactionRow";
@@ -16,7 +10,12 @@ const PAGE_SIZE = 10;
 
 /** Серверный виджет: последние транзакции текущей страницы + пагинатор. */
 export async function RecentTransactions({ page }: { page: number }) {
-  const { items, total, page: current, limit } = await getTransactions({
+  const {
+    items,
+    total,
+    page: current,
+    limit,
+  } = await getTransactions({
     page,
     limit: PAGE_SIZE,
   });

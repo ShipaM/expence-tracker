@@ -36,21 +36,25 @@
 ## Чек-лист задач
 
 ### Подготовка
+
 - [x] Установить зависимости `apps/api`: `@nestjs/cqrs`, `@nestjs/jwt`, `@nestjs/passport`,
       `passport`, `passport-jwt`, `bcryptjs` (+ dev `@types/passport-jwt`); версии `@nestjs/*` под v11
 - [ ] Добавить `JWT_SECRET` в `.env` и `.env.example` ⚠️ файлы `.env*` закрыты правами — добавляет пользователь вручную
 
 ### БД (`packages/db`)
+
 - [x] Добавить поле `passwordHash String` в модель `User` (`prisma/schema.prisma`)
 - [x] `npm run db:generate` и `npm run db:migrate` (миграция `add_user_password_hash`)
 
 ### Общие схемы (`packages/shared/src/index.ts`)
+
 - [x] `registerSchema` = `{ email: z.email(), name: z.string().min(1).max(120), password: z.string().min(8).max(72) }`
 - [x] `loginSchema` = `{ email: z.email(), password: z.string().min(1) }`
 - [x] Типы `RegisterDto`, `LoginDto` (`z.infer`)
 - [x] Интерфейсы `UserDto { id, email, name: string | null }`, `AuthResponseDto { accessToken, user }` (без хэша)
 
 ### UsersModule (`apps/api/src/users/`)
+
 - [x] `users.repository.ts` — `@Injectable`, инжектит `PrismaService`: `create`, `findByEmail`, `findById` (через `this.prisma.client.user.*`)
 - [x] `users.service.ts` — `@Injectable`, инжектит `UsersRepository`: `create`, `findByEmail`, `findById`
 - [x] `contracts/create-user.command.ts` — `CreateUserCommand(email, name, passwordHash)`
@@ -62,6 +66,7 @@
 - [x] `users.module.ts` — `imports: [CqrsModule]`, провайдеры: репозиторий, сервис, 3 хэндлера (контроллера нет)
 
 ### AuthModule (`apps/api/src/auth/`)
+
 - [x] `jwt.strategy.ts` — `PassportStrategy(Strategy)`, `fromAuthHeaderAsBearerToken`, secret из `ConfigService`; `validate` → `{ userId, email }`
 - [x] `jwt-auth.guard.ts` — `JwtAuthGuard extends AuthGuard("jwt")`
 - [x] `current-user.decorator.ts` — `@CurrentUser()` возвращает `req.user.userId`
@@ -70,13 +75,16 @@
 - [x] `auth.module.ts` — `imports: [CqrsModule, PassportModule, JwtModule.registerAsync(...)]`, провайдеры + `exports: [JwtAuthGuard]` (UsersModule не импортируем — хэндлеры регистрируются глобально)
 
 ### Подключение guard к expenses
+
 - [x] `expenses.controller.ts` — `@UseGuards(JwtAuthGuard)`, `@CurrentUser() userId` вместо `@Query`, убрать `Query` (`ParseUUIDPipe` остаётся для `:id`), снять TODO:23
 - [x] `expenses.module.ts` — `imports: [AuthModule]`
 
 ### Корень
+
 - [x] `app.module.ts` — добавить `UsersModule`, `AuthModule` в `imports`
 
 ### Тесты
+
 - [x] `apps/api/src/auth/auth.service.spec.ts` — register хэширует+диспатчит; login бросает `UnauthorizedException` при неверном пароле; me отдаёт DTO без хэша
 - [x] `apps/api/src/users/users.service.spec.ts` — делегирование в `UsersRepository`
 - [x] `apps/api/test/auth.e2e-spec.ts` — register 201, дубль email 409, login 200, неверный пароль 401, `/me` без токена 401 / с токеном 200
@@ -84,12 +92,14 @@
 - [x] `JWT_SECRET` для e2e добавлен в `apps/api/vitest.config.e2e.ts` (`test.env`), чтобы `npm run test:e2e` работал из коробки
 
 ## Замороженные версии — не трогаем
+
 TypeScript 5.9.3, ESLint 9.39.5, swc-трансформ Vitest остаются как есть (см. CLAUDE.md).
 Новые `@nestjs/*` берём совместимыми с v11. `emitDecoratorMetadata` уже включён в `tsconfig` и в
 Vitest-конфигах (`oxc:false` + `unplugin-swc`) — CQRS/Passport-декораторы на нём держатся,
 менять конфиги не нужно.
 
 ## Проверка (end-to-end)
+
 1. `npm run db:generate && npm run db:migrate` — применить поле `passwordHash`.
 2. `npm run typecheck` и `npm run lint` — по всем воркспейсам.
 3. `npm test` — юниты (`auth.service`, `users.service`, существующие 29) зелёные.

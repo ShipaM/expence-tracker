@@ -83,7 +83,12 @@ const DAILY_EXPENSES: Record<
 };
 
 /** Крупные обязательные платежи — раз в месяц, а не вперемешку с кофе. */
-const MONTHLY_EXPENSES: { category: string; description: string; dayOfMonth: number; amount: [number, number] }[] = [
+const MONTHLY_EXPENSES: {
+  category: string;
+  description: string;
+  dayOfMonth: number;
+  amount: [number, number];
+}[] = [
   { category: "Жильё", description: "Аренда квартиры", dayOfMonth: 5, amount: [45000, 45000] },
   { category: "Жильё", description: "Коммунальные услуги", dayOfMonth: 12, amount: [3200, 6400] },
   { category: "Жильё", description: "Интернет", dayOfMonth: 12, amount: [800, 800] },

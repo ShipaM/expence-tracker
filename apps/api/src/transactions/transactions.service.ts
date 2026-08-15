@@ -2,11 +2,7 @@ import { Injectable, NotFoundException, UnauthorizedException } from "@nestjs/co
 import { QueryBus } from "@nestjs/cqrs";
 import { Prisma } from "@repo/db";
 import type { Category, Transaction, User } from "@repo/db";
-import type {
-  PaginatedTransactionsDto,
-  TransactionDto,
-  TransactionSummaryDto,
-} from "@repo/shared";
+import type { PaginatedTransactionsDto, TransactionDto, TransactionSummaryDto } from "@repo/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { GetUserByIdQuery } from "../users/contracts/get-user-by-id.query";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
@@ -43,10 +39,7 @@ export class TransactionsService {
    *   пустые поля не участвуют в запросе, дефолты — `page = 1`, `limit = 20`.
    * @returns Список транзакций с категориями плюс `total`, `page`, `limit`.
    */
-  async findAll(
-    userId: string,
-    filters: QueryTransactionsDto,
-  ): Promise<PaginatedTransactionsDto> {
+  async findAll(userId: string, filters: QueryTransactionsDto): Promise<PaginatedTransactionsDto> {
     const where: Prisma.TransactionWhereInput = {
       userId,
       ...(filters.type && { type: filters.type }),

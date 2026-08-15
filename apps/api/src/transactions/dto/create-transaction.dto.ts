@@ -1,6 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { TransactionType } from "@repo/db";
-import { IsEnum, IsISO8601, IsOptional, IsString, IsUUID, Matches, MaxLength } from "class-validator";
+import {
+  IsEnum,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+} from "class-validator";
 
 /** Тело `POST /api/transactions`. Проверяется глобальным ValidationPipe (class-validator). */
 export class CreateTransactionDto {

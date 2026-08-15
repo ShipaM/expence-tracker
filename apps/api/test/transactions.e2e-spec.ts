@@ -179,7 +179,9 @@ describe("Transactions (e2e)", () => {
       await createTransaction(validBody({ type: "INCOME", amount: "5000.00" })).expect(201);
       await createTransaction(validBody({ type: "EXPENSE", amount: "3200.00" })).expect(201);
       // Другой месяц — не должен попасть в июльский summary.
-      await createTransaction(validBody({ amount: "999.00", date: "2026-08-01T00:00:00.000Z" })).expect(201);
+      await createTransaction(
+        validBody({ amount: "999.00", date: "2026-08-01T00:00:00.000Z" }),
+      ).expect(201);
 
       const response = await request(app.getHttpServer())
         .get("/api/transactions/summary?month=7&year=2026")
@@ -193,8 +195,18 @@ describe("Transactions (e2e)", () => {
       });
       expect(response.body.byCategory).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ categoryId, name: "Продукты", type: "INCOME", total: "5000.00" }),
-          expect.objectContaining({ categoryId, name: "Продукты", type: "EXPENSE", total: "3200.00" }),
+          expect.objectContaining({
+            categoryId,
+            name: "Продукты",
+            type: "INCOME",
+            total: "5000.00",
+          }),
+          expect.objectContaining({
+            categoryId,
+            name: "Продукты",
+            type: "EXPENSE",
+            total: "3200.00",
+          }),
         ]),
       );
     });

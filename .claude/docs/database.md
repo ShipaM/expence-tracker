@@ -4,13 +4,13 @@ PostgreSQL 18 в Docker, ORM — Prisma 7. Схема: `packages/db/prisma/schem
 
 ## Подключение
 
-| Параметр | Значение |
-|---|---|
-| Хост:порт | `localhost:5433` (внутри контейнера — 5432) |
-| База | `expence_tracker` |
-| База для e2e | `expence_tracker_test` |
-| Контейнер | `expence-tracker-db`, образ `postgres:18-alpine` |
-| Том | `postgres-data` → `/var/lib/postgresql` |
+| Параметр     | Значение                                         |
+| ------------ | ------------------------------------------------ |
+| Хост:порт    | `localhost:5433` (внутри контейнера — 5432)      |
+| База         | `expence_tracker`                                |
+| База для e2e | `expence_tracker_test`                           |
+| Контейнер    | `expence-tracker-db`, образ `postgres:18-alpine` |
+| Том          | `postgres-data` → `/var/lib/postgresql`          |
 
 **Порт 5433, а не 5432.** На хосте 5432 занимает локальная служба `postgresql-x64-18`. Windows
 разрешает Docker-прокси занять уже слушающий порт молча: контейнер рапортует
@@ -35,42 +35,42 @@ User ──1:N──► Category ──1:N──► Transaction
 
 ### `users`
 
-| Поле | Тип | Атрибуты | Назначение |
-|---|---|---|---|
-| `id` | `String @db.Uuid` | PK, `@default(uuid())` | идентификатор |
-| `email` | `String` | `@unique` | логин; уникальность даёт `P2002` → 409 |
-| `name` | `String?` | | отображаемое имя, может отсутствовать |
-| `passwordHash` | `String` | | bcrypt-хэш; **никогда не покидает бэкенд** |
-| `createdAt` | `DateTime` | `@default(now())` | момент регистрации |
-| `updatedAt` | `DateTime` | `@updatedAt` | момент последнего изменения |
+| Поле           | Тип               | Атрибуты               | Назначение                                 |
+| -------------- | ----------------- | ---------------------- | ------------------------------------------ |
+| `id`           | `String @db.Uuid` | PK, `@default(uuid())` | идентификатор                              |
+| `email`        | `String`          | `@unique`              | логин; уникальность даёт `P2002` → 409     |
+| `name`         | `String?`         |                        | отображаемое имя, может отсутствовать      |
+| `passwordHash` | `String`          |                        | bcrypt-хэш; **никогда не покидает бэкенд** |
+| `createdAt`    | `DateTime`        | `@default(now())`      | момент регистрации                         |
+| `updatedAt`    | `DateTime`        | `@updatedAt`           | момент последнего изменения                |
 
 Наружу отдаётся только `UserDto { id, email, name }` — собирается в `AuthService.toUserDto`.
 
 ### `categories`
 
-| Поле | Тип | Атрибуты | Назначение |
-|---|---|---|---|
-| `id` | `String @db.Uuid` | PK, `@default(uuid())` | идентификатор |
-| `name` | `String` | | название; 1–60 символов на уровне DTO |
-| `color` | `String` | `@default("#6366f1")` | HEX-цвет `#a1b2c3` для UI |
-| `icon` | `String?` | | имя иконки, до 40 символов; необязательно |
-| `userId` | `String @db.Uuid` | FK → `users.id` | владелец |
+| Поле     | Тип               | Атрибуты               | Назначение                                |
+| -------- | ----------------- | ---------------------- | ----------------------------------------- |
+| `id`     | `String @db.Uuid` | PK, `@default(uuid())` | идентификатор                             |
+| `name`   | `String`          |                        | название; 1–60 символов на уровне DTO     |
+| `color`  | `String`          | `@default("#6366f1")`  | HEX-цвет `#a1b2c3` для UI                 |
+| `icon`   | `String?`         |                        | имя иконки, до 40 символов; необязательно |
+| `userId` | `String @db.Uuid` | FK → `users.id`        | владелец                                  |
 
 Ограничение `@@unique([userId, name])`: имя уникально **в пределах пользователя**, а не
 глобально. Нарушение даёт `P2002` → `ConflictException` (409).
 
 ### `transactions`
 
-| Поле | Тип | Атрибуты | Назначение |
-|---|---|---|---|
-| `id` | `String @db.Uuid` | PK, `@default(uuid())` | идентификатор |
-| `amount` | `Decimal @db.Decimal(12,2)` | | сумма; наружу строкой (`toFixed(2)`) |
-| `type` | `TransactionType` | | `INCOME` или `EXPENSE` |
-| `description` | `String?` | | комментарий, до 500 символов |
-| `date` | `DateTime` | | дата операции — задаётся пользователем |
-| `userId` | `String @db.Uuid` | FK → `users.id` | владелец |
-| `categoryId` | `String @db.Uuid` | FK → `categories.id` | категория |
-| `createdAt` | `DateTime` | `@default(now())` | момент создания записи |
+| Поле          | Тип                         | Атрибуты               | Назначение                             |
+| ------------- | --------------------------- | ---------------------- | -------------------------------------- |
+| `id`          | `String @db.Uuid`           | PK, `@default(uuid())` | идентификатор                          |
+| `amount`      | `Decimal @db.Decimal(12,2)` |                        | сумма; наружу строкой (`toFixed(2)`)   |
+| `type`        | `TransactionType`           |                        | `INCOME` или `EXPENSE`                 |
+| `description` | `String?`                   |                        | комментарий, до 500 символов           |
+| `date`        | `DateTime`                  |                        | дата операции — задаётся пользователем |
+| `userId`      | `String @db.Uuid`           | FK → `users.id`        | владелец                               |
+| `categoryId`  | `String @db.Uuid`           | FK → `categories.id`   | категория                              |
+| `createdAt`   | `DateTime`                  | `@default(now())`      | момент создания записи                 |
 
 `date` и `createdAt` — разные вещи: первая может быть в прошлом, вторая ставится системой.
 Агрегация `/summary` считает по `date`.
@@ -88,20 +88,20 @@ User ──1:N──► Category ──1:N──► Transaction
 себе не двигает: при отметке об оплате из него создаётся запись в `transactions`, а
 `nextDueDate` сдвигается на период вперёд.
 
-| Поле | Тип | Атрибуты | Назначение |
-|---|---|---|---|
-| `id` | `String @db.Uuid` | PK, `@default(uuid())` | идентификатор |
-| `name` | `String` | | название; 1–60 символов на уровне схемы zod |
-| `amount` | `Decimal @db.Decimal(12,2)` | | сумма списания; наружу строкой |
-| `type` | `TransactionType` | | `INCOME` (зарплата) или `EXPENSE` (подписка) |
-| `period` | `PaymentPeriod` | | периодичность повторения |
-| `nextDueDate` | `DateTime` | | дата ближайшего списания; сдвигается при оплате |
-| `isActive` | `Boolean` | `@default(true)` | выключенный не попадает в прогноз списаний |
-| `description` | `String?` | | комментарий, до 500 символов |
-| `userId` | `String @db.Uuid` | FK → `users.id` | владелец |
-| `categoryId` | `String @db.Uuid` | FK → `categories.id` | категория будущей транзакции |
-| `createdAt` | `DateTime` | `@default(now())` | момент создания |
-| `updatedAt` | `DateTime` | `@updatedAt` | момент последнего изменения |
+| Поле          | Тип                         | Атрибуты               | Назначение                                      |
+| ------------- | --------------------------- | ---------------------- | ----------------------------------------------- |
+| `id`          | `String @db.Uuid`           | PK, `@default(uuid())` | идентификатор                                   |
+| `name`        | `String`                    |                        | название; 1–60 символов на уровне схемы zod     |
+| `amount`      | `Decimal @db.Decimal(12,2)` |                        | сумма списания; наружу строкой                  |
+| `type`        | `TransactionType`           |                        | `INCOME` (зарплата) или `EXPENSE` (подписка)    |
+| `period`      | `PaymentPeriod`             |                        | периодичность повторения                        |
+| `nextDueDate` | `DateTime`                  |                        | дата ближайшего списания; сдвигается при оплате |
+| `isActive`    | `Boolean`                   | `@default(true)`       | выключенный не попадает в прогноз списаний      |
+| `description` | `String?`                   |                        | комментарий, до 500 символов                    |
+| `userId`      | `String @db.Uuid`           | FK → `users.id`        | владелец                                        |
+| `categoryId`  | `String @db.Uuid`           | FK → `categories.id`   | категория будущей транзакции                    |
+| `createdAt`   | `DateTime`                  | `@default(now())`      | момент создания                                 |
+| `updatedAt`   | `DateTime`                  | `@updatedAt`           | момент последнего изменения                     |
 
 Ограничение `@@unique([userId, name])` — как у категорий: имя платежа уникально в пределах
 пользователя, чтобы в списке не появлялось двух «Подписок» без различий.
@@ -155,12 +155,12 @@ User ──1:N──► Category ──1:N──► Transaction
 
 Лежат в `packages/db/prisma/migrations/`:
 
-| Миграция | Что добавила |
-|---|---|
-| `20260714175318_init` | начальная схема |
-| `20260715185940_add_user_password_hash` | `users.passwordHash` |
-| `20260722162110_add_category_icon` | `categories.icon` |
-| `20260723174742_add_transactions` | таблица `transactions` |
+| Миграция                                | Что добавила           |
+| --------------------------------------- | ---------------------- |
+| `20260714175318_init`                   | начальная схема        |
+| `20260715185940_add_user_password_hash` | `users.passwordHash`   |
+| `20260722162110_add_category_icon`      | `categories.icon`      |
+| `20260723174742_add_transactions`       | таблица `transactions` |
 
 Команды — в `dev-guide.md`.
 

@@ -37,6 +37,7 @@
 ## Чеклист выполнения
 
 Часть A — API (один коммит `feat(api)!`):
+
 - [x] A1. `page/limit` в `QueryTransactionsDto`
 - [x] A2. `findAll`: `skip/take` + `count`, возврат обёртки
 - [x] A3. Тип возврата контроллера → `PaginatedTransactionsDto`
@@ -46,6 +47,7 @@
 - [x] A7. `typecheck` ✅ + юнит ✅ (17) + e2e ✅ (18)
 
 Часть B — фронтенд FSD (один коммит `feat(web)`):
+
 - [x] B1. `entities/transaction` (`transactions.server.ts`, `lib/format.ts`, `index.ts`, `server.ts`)
 - [x] B2. `widgets/user-profile`
 - [x] B3. `widgets/main-menu`
@@ -62,6 +64,7 @@
 
 **A1. DTO** — [query-transactions.dto.ts](../../apps/api/src/transactions/dto/query-transactions.dto.ts)
 Добавить два опциональных поля (паттерн `@Type(() => Number)` уже применяется в `summary-query.dto.ts`):
+
 ```ts
 @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
 @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
@@ -78,6 +81,7 @@
 
 **A4. Shared-тип** — [packages/shared/src/index.ts](../../packages/shared/src/index.ts)
 Рядом с `TransactionDto`:
+
 ```ts
 export interface PaginatedTransactionsDto {
   items: TransactionDto[];
@@ -93,7 +97,8 @@ export interface PaginatedTransactionsDto {
 
 **A6. E2E** — [transactions.e2e-spec.ts](../../apps/api/test/transactions.e2e-spec.ts)
 Проверки списка — с массива на `body.items` / `body.total`; добавить кейс пагинации (создать
->limit транзакций, проверить `page=2` и `total`). Изоляцию по `userId` и порядок `date desc` — сохранить.
+
+> limit транзакций, проверить `page=2` и `total`). Изоляцию по `userId` и порядок `date desc` — сохранить.
 
 ### Часть B. Фронтенд (FSD)
 
@@ -101,6 +106,7 @@ export interface PaginatedTransactionsDto {
 (как у `entities/session`).
 
 **B1. `entities/transaction/`**
+
 - `model/transactions.server.ts` (`server-only`): `getTransactions({ page, limit })` — токен из
   `SESSION_COOKIE` (`cookies()`), `nestJson<PaginatedTransactionsDto>("/transactions?page=..&limit=..", { token })`.
   Зеркалит [session.server.ts](../../apps/web/src/entities/session/model/session.server.ts).
@@ -115,6 +121,7 @@ export interface PaginatedTransactionsDto {
 `/transactions` и `/categories`.
 
 **B4. `widgets/recent-transactions/`** (серверный, проп `page`):
+
 - `ui/RecentTransactions.tsx`: `getTransactions({ page, limit: 10 })`, рендер `items` (пусто →
   «Транзакций пока нет»), под списком — пагинатор.
 - `ui/TransactionRow.tsx`: `category.name`, дата, сумма (цвет по типу), `description`.
@@ -125,9 +132,10 @@ export interface PaginatedTransactionsDto {
 `RecentTransactions` в `<main>` (стиль как текущий `page.tsx`). `index.ts` → `HomePage`.
 
 **B6. `app/page.tsx`**:
+
 ```tsx
 export default async function Page({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
-  if (!(await getSession())) redirect("/login");   // из @/entities/session/server
+  if (!(await getSession())) redirect("/login"); // из @/entities/session/server
   const page = Math.max(1, Number((await searchParams).page) || 1);
   return <HomePage page={page} />;
 }
@@ -149,6 +157,7 @@ NODE_ENV=production npm run build --workspace @repo/web   # ловушка next 
 ```
 
 Вручную (`npm run dev`, `JWT_SECRET` в `.env`):
+
 1. Гость на `/` → редирект на `/login`.
 2. Логин → `/` показывает имя (или email), меню и список.
 3. Меню: ссылки ведут на `/transactions` и `/categories` (пока 404 — ожидаемо).
@@ -158,10 +167,10 @@ NODE_ENV=production npm run build --workspace @repo/web   # ловушка next 
 ## Правки по код-ревью (hardening)
 
 - [x] `app/error.tsx` — граница ошибок маршрута: мягкий фолбэк вместо падения при сбое
-  серверного фетча (недоступный API / протухший токен между `getSession` и списком).
+      серверного фетча (недоступный API / протухший токен между `getSession` и списком).
 - [x] Кламп страницы в `RecentTransactions`: запрос за пределом (`/?page=99`) редиректит на
-  последнюю валидную страницу — убирает «Страница 99 из 2» над пустым списком.
-  Проверено вживую: `/?page=99` → 307 → `/?page=2`.
+      последнюю валидную страницу — убирает «Страница 99 из 2» над пустым списком.
+      Проверено вживую: `/?page=99` → 307 → `/?page=2`.
 
 ## Коммиты (GitHub Flow)
 

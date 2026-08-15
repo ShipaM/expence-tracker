@@ -84,9 +84,7 @@ export const PAYMENT_PERIODS = ["WEEKLY", "MONTHLY", "QUARTERLY", "YEARLY"] as c
 export type PaymentPeriod = (typeof PAYMENT_PERIODS)[number];
 
 /** Сумма: строка с двумя знаками после точки — в БД `Decimal(12,2)`. */
-const amountSchema = z
-  .string()
-  .regex(/^\d+(\.\d{1,2})?$/, "Ожидается сумма вида 1234.56");
+const amountSchema = z.string().regex(/^\d+(\.\d{1,2})?$/, "Ожидается сумма вида 1234.56");
 
 /** Схема тела для создания регулярного платежа. */
 export const createPaymentSchema = z.object({

@@ -2,14 +2,7 @@
 
 import { BalanceRule, type BalanceSegment } from "@/shared/ui/balance-rule";
 import { Button } from "@/shared/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/shared/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/form";
 import { Input } from "@/shared/ui/input";
 import { LEDGER_INPUT, LEDGER_LABEL, LEDGER_SUBMIT } from "@/shared/ui/ledger-field";
 import { PasswordInput } from "@/shared/ui/password-input";
@@ -29,11 +22,7 @@ export function LoginForm() {
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={onSubmit}
-        noValidate
-        className="grid grid-cols-[1.5rem_1fr] gap-x-5"
-      >
+      <form onSubmit={onSubmit} noValidate className="grid grid-cols-[1.5rem_1fr] gap-x-5">
         <div className="row-span-full">
           <BalanceRule segments={[segmentOf("email"), segmentOf("password")]} />
         </div>

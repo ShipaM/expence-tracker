@@ -80,8 +80,16 @@ export class PaymentsController {
       "Только активные платежи. Просроченные (дата уже прошла) тоже попадают в выборку — " +
       "их всё равно предстоит оплатить.",
   })
-  @ApiQuery({ name: "days", required: false, schema: { type: "integer", minimum: 1, maximum: 365, default: 30 } })
-  @ApiResponse({ status: 200, description: "Платежи окна и итоги", type: UpcomingPaymentsResponseDto })
+  @ApiQuery({
+    name: "days",
+    required: false,
+    schema: { type: "integer", minimum: 1, maximum: 365, default: 30 },
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Платежи окна и итоги",
+    type: UpcomingPaymentsResponseDto,
+  })
   @ApiResponse({ status: 400, description: "days вне диапазона 1–365" })
   @Get("upcoming")
   upcoming(
@@ -129,7 +137,10 @@ export class PaymentsController {
   @ApiParam({ name: "id", format: "uuid", description: "Идентификатор платежа" })
   @ApiResponse({ status: 200, description: "Платёж", type: PaymentResponseDto })
   @ApiResponse({ status: 400, description: "id не UUID" })
-  @ApiResponse({ status: 404, description: "Платёж не найден или принадлежит другому пользователю" })
+  @ApiResponse({
+    status: 404,
+    description: "Платёж не найден или принадлежит другому пользователю",
+  })
   @Get(":id")
   findOne(
     @CurrentUser() userId: string,
@@ -157,8 +168,14 @@ export class PaymentsController {
   @ApiBody({ type: CreatePaymentRequestDto })
   @ApiResponse({ status: 201, description: "Платёж создан", type: PaymentResponseDto })
   @ApiResponse({ status: 400, description: "Тело не прошло валидацию" })
-  @ApiResponse({ status: 401, description: "Токен невалиден либо пользователя из токена больше нет" })
-  @ApiResponse({ status: 404, description: "Категория не найдена или принадлежит другому пользователю" })
+  @ApiResponse({
+    status: 401,
+    description: "Токен невалиден либо пользователя из токена больше нет",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Категория не найдена или принадлежит другому пользователю",
+  })
   @Post()
   create(
     @CurrentUser() userId: string,
@@ -185,7 +202,10 @@ export class PaymentsController {
   @ApiBody({ type: UpdatePaymentRequestDto })
   @ApiResponse({ status: 200, description: "Обновлённый платёж", type: PaymentResponseDto })
   @ApiResponse({ status: 400, description: "id не UUID либо тело не прошло валидацию" })
-  @ApiResponse({ status: 404, description: "Платёж не найден/чужой либо категория не найдена/чужая" })
+  @ApiResponse({
+    status: 404,
+    description: "Платёж не найден/чужой либо категория не найдена/чужая",
+  })
   @Patch(":id")
   update(
     @CurrentUser() userId: string,
@@ -214,9 +234,16 @@ export class PaymentsController {
       "отметить с опозданием, и в отчёт он должен попасть по плановому месяцу.",
   })
   @ApiParam({ name: "id", format: "uuid", description: "Идентификатор платежа" })
-  @ApiResponse({ status: 201, description: "Транзакция создана, дата сдвинута", type: PaidPaymentResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: "Транзакция создана, дата сдвинута",
+    type: PaidPaymentResponseDto,
+  })
   @ApiResponse({ status: 400, description: "id не UUID" })
-  @ApiResponse({ status: 404, description: "Платёж не найден или принадлежит другому пользователю" })
+  @ApiResponse({
+    status: 404,
+    description: "Платёж не найден или принадлежит другому пользователю",
+  })
   @Post(":id/pay")
   pay(
     @CurrentUser() userId: string,
@@ -241,13 +268,13 @@ export class PaymentsController {
   @ApiParam({ name: "id", format: "uuid", description: "Идентификатор платежа" })
   @ApiResponse({ status: 204, description: "Платёж удалён, тело ответа пустое" })
   @ApiResponse({ status: 400, description: "id не UUID" })
-  @ApiResponse({ status: 404, description: "Платёж не найден или принадлежит другому пользователю" })
+  @ApiResponse({
+    status: 404,
+    description: "Платёж не найден или принадлежит другому пользователю",
+  })
   @Delete(":id")
   @HttpCode(204)
-  remove(
-    @CurrentUser() userId: string,
-    @Param("id", ParseUUIDPipe) id: string,
-  ): Promise<void> {
+  remove(@CurrentUser() userId: string, @Param("id", ParseUUIDPipe) id: string): Promise<void> {
     return this.payments.remove(userId, id);
   }
 }

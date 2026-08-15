@@ -5,14 +5,7 @@ import Link from "next/link";
 import { BalanceRule, type BalanceSegment } from "@/shared/ui/balance-rule";
 import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/shared/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/form";
 import { Input } from "@/shared/ui/input";
 import { LEDGER_INPUT, LEDGER_LABEL, LEDGER_SUBMIT } from "@/shared/ui/ledger-field";
 import { PasswordInput } from "@/shared/ui/password-input";
@@ -29,19 +22,11 @@ export function RegisterForm() {
     if (errors[name]) return "error";
     return values[name]?.trim() ? "valid" : "empty";
   };
-  const agreeSegment: BalanceSegment = errors.agree
-    ? "error"
-    : values.agree
-      ? "valid"
-      : "empty";
+  const agreeSegment: BalanceSegment = errors.agree ? "error" : values.agree ? "valid" : "empty";
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={onSubmit}
-        noValidate
-        className="grid grid-cols-[1.5rem_1fr] gap-x-5"
-      >
+      <form onSubmit={onSubmit} noValidate className="grid grid-cols-[1.5rem_1fr] gap-x-5">
         <div className="row-span-full">
           <BalanceRule
             segments={[
@@ -100,11 +85,7 @@ export function RegisterForm() {
               <FormItem className="ledger-rise gap-1.5" style={{ animationDelay: "160ms" }}>
                 <FormLabel className={LEDGER_LABEL}>Пароль</FormLabel>
                 <FormControl>
-                  <PasswordInput
-                    autoComplete="new-password"
-                    className={LEDGER_INPUT}
-                    {...field}
-                  />
+                  <PasswordInput autoComplete="new-password" className={LEDGER_INPUT} {...field} />
                 </FormControl>
                 <FormMessage className="font-mono text-[0.6875rem]" />
               </FormItem>

@@ -82,11 +82,11 @@ export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
 export interface TransactionDto {
   id: string;
-  amount: string;              // Decimal → строка (toFixed(2))
+  amount: string; // Decimal → строка (toFixed(2))
   type: TransactionType;
   description: string | null;
-  date: string;                // ISO
-  category: CategoryDto;       // categoryId обязателен → категория всегда есть
+  date: string; // ISO
+  category: CategoryDto; // categoryId обязателен → категория всегда есть
   createdAt: string;
 }
 
@@ -112,6 +112,7 @@ export interface TransactionSummaryDto {
 Скелет — по образцу `categories` (class-validator, `CqrsModule` + `QueryBus`, `toDto`).
 
 **`dto/` (class-validator):**
+
 - `create-transaction.dto.ts`:
   - `amount` — `@Matches(/^\d+(\.\d{1,2})?$/)` строка;
   - `type` — `@IsEnum(TransactionType)` (enum импортируется из `@repo/db`);
@@ -139,6 +140,7 @@ DELETE /transactions/:id      @HttpCode(204)             → remove(userId, id)
 ```
 
 **`transactions.service.ts`** — инжектит `PrismaService` + `QueryBus`:
+
 - `findAll(userId, f)`: `where { userId, ...(f.type), ...(f.categoryId), ...(date: { gte: dateFrom, lte: dateTo }) }`,
   `include: { category: true }`, `orderBy: { date: "desc" }` → `toDto`.
 - `findOne(userId, id)`: `findFirst({ where: { id, userId }, include: { category: true } })`,
@@ -183,6 +185,7 @@ DELETE /transactions/:id      @HttpCode(204)             → remove(userId, id)
 ### 7. E2E — `apps/api/test/transactions.e2e-spec.ts`
 
 По образцу `categories.e2e-spec.ts` (**с** `ValidationPipe`, т.к. class-validator):
+
 - bootstrap: `setGlobalPrefix("api")` + `useGlobalPipes(new ValidationPipe({ whitelist, forbidNonWhitelisted, transform }))`;
 - токен — из `POST /api/auth/register` (`body.accessToken`); второй юзер для проверки изоляции;
 - `beforeEach`: чистка в порядке FK — `transaction.deleteMany()` → `category.deleteMany()` → `user.deleteMany()`;

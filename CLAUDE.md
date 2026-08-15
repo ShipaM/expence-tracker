@@ -39,6 +39,8 @@ npm run dev                 # все приложения параллельно
 npm run build               # сборка всех воркспейсов
 npm run typecheck           # tsc --noEmit
 npm run lint
+npm run format              # prettier --write по всему репо
+npm run format:check        # prettier --check, ничего не переписывает
 npm run clean               # удалить dist, .next, src/generated
 
 npm test                    # юнит-тесты всех воркспейсов (Vitest), БД не нужна
@@ -152,6 +154,31 @@ Vitest 4 во всех трёх воркспейсах, где есть тест
 оставлять в воркспейсе старую копию с пометкой `invalid`, и инкрементальный `npm install` её не
 чинит. Лечится полной переустановкой (`rm -rf node_modules package-lock.json && npm install`).
 
+## Prettier
+
+Форматирование — общее на весь монорепо: `prettier` стоит в devDependencies **корня**, конфиг
+один (`.prettierrc.json`), запускается не через Turbo, а напрямую по всему дереву
+(`npm run format` / `npm run format:check`). Отдельных конфигов в воркспейсах нет и заводить их
+не нужно — разный стиль в `web` и `api` только создаст шум в diff.
+
+Ключевые опции и почему именно так:
+
+- `printWidth: 100` — по этой ширине уже свёрстан код и комментарии на русском; при 80 пришлось
+  бы переносить почти каждую строку с JSDoc.
+- `endOfLine: "auto"` — у репозитория `core.autocrlf=true`, в рабочем дереве файлы вперемешку
+  CRLF/LF. С дефолтным `"lf"` `format:check` падал бы на файлах, которые сам же git и
+  сконвертировал при checkout; в индексе всё равно лежит LF.
+- Двойные кавычки, `semi`, `trailingComma: "all"` — то, как код написан сейчас.
+
+**С ESLint не конфликтует и `eslint-config-prettier` не нужен:** ни `typescript-eslint` 8
+(recommended), ни `eslint-config-next` 16 не включают форматирующих правил. Если однажды
+добавите stylistic-правила — сначала подключите `eslint-config-prettier`, иначе линт и
+форматтер начнут спорить.
+
+Не форматируются (`.prettierignore`): артефакты сборки, `packages/db/src/generated/`,
+`package-lock.json` и SQL миграций Prisma — их переписывать нельзя, история миграций должна
+совпадать с тем, что применено к базе.
+
 ## Общие конвенции
 
 - **Валидация — zod по умолчанию.** Схемы живут в `packages/shared/src/index.ts` и
@@ -185,7 +212,7 @@ Vitest 4 во всех трёх воркспейсах, где есть тест
 ## Pull Request
 
 PR — единственный способ попасть в `master`. Перед созданием прогони локально то, что
-проверяет ревью: `npm run typecheck`, `npm run lint`, `npm test` (и `npm run test:e2e`,
+проверяет ревью: `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test` (и `npm run test:e2e`,
 если трогал API — нужен поднятый контейнер).
 
 **Заголовок — по Conventional Commits**, как коммит: `<тип>(<scope>): <описание на английском>`.

@@ -415,7 +415,8 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-expence_tracker}"]
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-expence_tracker}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -467,6 +468,7 @@ Docker придумал бы имя сам. С ним удобно обраща�
 
 **`environment:`** — переменные окружения, которые задают настройку PostgreSQL при
 **первом** создании контейнера. Их значения подставляются из `.env`:
+
 - `POSTGRES_USER: ${POSTGRES_USER}` — имя суперпользователя БД.
 - `POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}` — его пароль. (Для локальной разработки
   простой пароль ок; в проде так делать нельзя.)
@@ -498,6 +500,7 @@ PostgreSQL держит данные. Формат `ИМЯ_ТОМА:ПУТЬ_В_
 **`healthcheck:`** — как Docker понимает, что база не просто «запущена», а реально
 **готова принимать подключения**. Команда `pg_isready` (с тем же `${POSTGRES_USER}`
 и `${POSTGRES_DB}` из `.env`) периодически стучится в БД:
+
 - `interval: 10s` — проверять каждые 10 секунд;
 - `timeout: 5s` — ждать ответа не дольше 5 секунд;
 - `retries: 5` — считать контейнер «нездоровым» после 5 неудач подряд.
@@ -506,7 +509,7 @@ PostgreSQL держит данные. Формат `ИМЯ_ТОМА:ПУТЬ_В_
 можно попытаться подключиться к ещё не готовой базе и получить ошибку.
 
 **`volumes: postgres-data:`** (в самом низу, на верхнем уровне) — здесь том
-**объявляется**. Верхний блок в `services` его *использует*, а этот — регистрирует у
+**объявляется**. Верхний блок в `services` его _использует_, а этот — регистрирует у
 Docker. Без этой строки Docker не знал бы про такой именованный том.
 
 ### 6.3. Как Docker связан с остальным проектом
@@ -525,6 +528,7 @@ docker-compose.yml                    DATABASE_URL=postgresql://…@localhost:54
 ```
 
 Типичный порядок первого запуска:
+
 1. `docker compose up -d` — подняли базу.
 2. `npm run db:migrate` — Prisma создала таблицы (`users`, `categories`, `transactions`).
 3. `npm run dev` — стартовали бэк и фронт, которые уже работают с живой базой.
@@ -591,19 +595,19 @@ Next Route Handler
 
 ## 8. Шпаргалка: где что искать
 
-| Хочу…                                       | Смотри сюда                                         |
-| ------------------------------------------- | --------------------------------------------------- |
-| Изменить внешний вид страницы               | `apps/web/src/views/*`, `widgets/*`, `globals.css`  |
-| Добавить страницу/маршрут                   | `apps/web/src/app/**/page.tsx` → делегирует в `views` |
-| Добавить серверный запрос к Nest с фронта   | `apps/web/src/shared/api/*` (nest.ts, auth.server.ts) |
+| Хочу…                                       | Смотри сюда                                                       |
+| ------------------------------------------- | ----------------------------------------------------------------- |
+| Изменить внешний вид страницы               | `apps/web/src/views/*`, `widgets/*`, `globals.css`                |
+| Добавить страницу/маршрут                   | `apps/web/src/app/**/page.tsx` → делегирует в `views`             |
+| Добавить серверный запрос к Nest с фронта   | `apps/web/src/shared/api/*` (nest.ts, auth.server.ts)             |
 | Тронуть авторизацию на фронте (куки/сессия) | `entities/session/*`, `app/api/auth/*`, `shared/config/cookie.ts` |
-| Добавить/изменить HTTP-эндпоинт             | `apps/api/src/transactions/transactions.controller.ts` |
-| Изменить бизнес-логику транзакций           | `apps/api/src/transactions/transactions.service.ts`    |
-| Поменять правила валидации/типы             | `packages/shared/src/index.ts`                      |
-| Изменить структуру таблиц БД                | `packages/db/prisma/schema.prisma` + новая миграция |
-| Настроить порядок/кэш сборки                | `turbo.json`                                        |
-| Добавить зависимость конкретному приложению | его `package.json` + `npm install` в корне          |
-| Понять «подводные камни» проекта            | `CLAUDE.md` (порт 5433, замороженные версии и т.д.) |
+| Добавить/изменить HTTP-эндпоинт             | `apps/api/src/transactions/transactions.controller.ts`            |
+| Изменить бизнес-логику транзакций           | `apps/api/src/transactions/transactions.service.ts`               |
+| Поменять правила валидации/типы             | `packages/shared/src/index.ts`                                    |
+| Изменить структуру таблиц БД                | `packages/db/prisma/schema.prisma` + новая миграция               |
+| Настроить порядок/кэш сборки                | `turbo.json`                                                      |
+| Добавить зависимость конкретному приложению | его `package.json` + `npm install` в корне                        |
+| Понять «подводные камни» проекта            | `CLAUDE.md` (порт 5433, замороженные версии и т.д.)               |
 
 ---
 
@@ -633,6 +637,7 @@ shared    ← ui (shadcn), lib, api, config — переиспользуемое
 Алиас `@/* → src/*`.
 
 Пара адаптаций под Next App Router:
+
 - FSD-слой «pages» назван **`views`**, потому что слово «pages» занято самим Next.
 - `src/app` держит только маршруты и BFF-хендлеры и делегирует в `views`; провайдеры
   сведены в корневой серверный `layout.tsx`.

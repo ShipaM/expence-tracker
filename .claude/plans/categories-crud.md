@@ -9,8 +9,9 @@
 модулем `User` через **CQRS** (проверка существования пользователя).
 
 ### Что уже есть (важно — не создавать заново)
+
 - **Модель `Category` уже в схеме Prisma** (`packages/db/prisma/schema.prisma`): `id, name,
-  color, userId`, FK на `User` (`onDelete: Cascade`), `@@unique([userId, name])`, обратная
+color, userId`, FK на `User` (`onDelete: Cascade`), `@@unique([userId, name])`, обратная
   связь `expenses`. **Не хватает только поля `icon`.**
 - Инфраструктура CQRS модуля `users`: контракт `GetUserByIdQuery`
   (`apps/api/src/users/contracts/get-user-by-id.query.ts`) и его хэндлер уже
@@ -20,6 +21,7 @@
 - `JwtAuthGuard` экспортируется из `AuthModule`; `PrismaService` глобален (`PrismaModule` — `@Global()`).
 
 ### Осознанные отступления (подтверждены пользователем)
+
 - **class-validator вместо zod.** `CLAUDE.md` предписывает «только zod». По явному решению
   пользователя категории валидируются через class-validator (DTO-классы + глобальный
   `ValidationPipe`). Потребуется установить `class-validator` и `class-transformer`.
@@ -33,7 +35,9 @@
 ## Изменения
 
 ### 1. Схема БД + миграция — добавить поле `icon`
+
 `packages/db/prisma/schema.prisma`, модель `Category`:
+
 ```prisma
 model Category {
   id     String  @id @default(uuid()) @db.Uuid
@@ -44,27 +48,37 @@ model Category {
   ...
 }
 ```
+
 Затем: `npm run db:generate` и `npm run db:migrate` (миграция вида `add_category_icon`).
 БД должна быть поднята (`docker compose up -d`, порт **5433** — см. CLAUDE.md).
 
 ### 2. Установить зависимости валидации
+
 В `apps/api`: `class-validator` и `class-transformer` (в `dependencies`).
 
 ### 3. Включить глобальный ValidationPipe
+
 `apps/api/src/main.ts`:
+
 ```ts
-app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+app.useGlobalPipes(
+  new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+);
 ```
+
 (Не затрагивает zod-контроллеры — их DTO не классы.)
 
 ### 4. DTO-классы с class-validator
+
 Новая папка `apps/api/src/categories/dto/`:
+
 - `create-category.dto.ts`:
   ```ts
   export class CreateCategoryDto {
     @IsString() @Length(1, 60) name!: string;
-    @IsOptional() @Matches(/^#[0-9a-fA-F]{6}$/, { message: "Ожидается HEX-цвет вида #a1b2c3" })
-    color?: string;                              // в БД дефолт #6366f1
+    @IsOptional()
+    @Matches(/^#[0-9a-fA-F]{6}$/, { message: "Ожидается HEX-цвет вида #a1b2c3" })
+    color?: string; // в БД дефолт #6366f1
     @IsOptional() @IsString() @MaxLength(40) icon?: string;
   }
   ```
@@ -72,6 +86,7 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: t
   чтобы не тянуть новую зависимость).
 
 ### 5. Модуль/сервис/контроллер categories
+
 Новая папка `apps/api/src/categories/` (образец — `apps/api/src/expenses/`):
 
 - `categories.module.ts`:
@@ -104,7 +119,9 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: t
 Импорт `GetUserByIdQuery` — из `../users/contracts/get-user-by-id.query` (контракты публичны).
 
 ### 6. Общие типы в @repo/shared
+
 `packages/shared/src/index.ts`:
+
 - Расширить `CategoryDto`: добавить `icon: string | null`.
 - **Следствие:** `apps/api/src/expenses/expenses.service.ts` (`toDto`) собирает `category`
   как `{ id, name, color }` — добавить туда `icon: expense.category.icon`, иначе перестанет
@@ -114,9 +131,11 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: t
   не удаляем — она может пригодиться фронту.)
 
 ### 7. Зарегистрировать модуль
+
 `apps/api/src/app.module.ts` → добавить `CategoriesModule` в `imports`.
 
 ## Тесты
+
 - **Юнит** `apps/api/src/categories/categories.service.spec.ts` (образец —
   `expenses.service.spec.ts`): мок `PrismaService` (`{ client: { category: {...} } }`) и мок
   `QueryBus`. Проверить: фильтрацию по `userId`, 404 на чужой ресурс, что `update`/`delete`
@@ -129,37 +148,44 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: t
 ## Чеклист реализации
 
 ### БД и зависимости
+
 - [x] Добавить `icon String?` в модель `Category` (`packages/db/prisma/schema.prisma`)
 - [x] `npm run db:generate`
 - [x] `npm run db:migrate` (миграция `add_category_icon`; контейнер на 5433 поднят)
 - [x] Установить `class-validator` и `class-transformer` в `apps/api` (dependencies)
 
 ### Общие типы (@repo/shared)
+
 - [x] Расширить `CategoryDto` полем `icon: string | null` (`packages/shared/src/index.ts`)
 - [x] Добавить `icon` в маппинг `category` в `expenses.service.ts` (`toDto`) — иначе typecheck упадёт
 
 ### API — валидация
+
 - [x] Включить глобальный `ValidationPipe` в `apps/api/src/main.ts`
 - [x] `apps/api/src/categories/dto/create-category.dto.ts` (`@IsString/@Length/@Matches/@IsOptional`)
 - [x] `apps/api/src/categories/dto/update-category.dto.ts` (все поля `@IsOptional`)
 
 ### API — модуль categories
+
 - [x] `apps/api/src/categories/categories.service.ts` (CQRS-проверка юзера, изоляция по `userId`, P2002→409, `toDto`)
 - [x] `apps/api/src/categories/categories.controller.ts` (`@Controller("categories")` + `@UseGuards(JwtAuthGuard)`, CRUD)
 - [x] `apps/api/src/categories/categories.module.ts` (`imports: [AuthModule, CqrsModule]`, экспорт сервиса)
 - [x] Зарегистрировать `CategoriesModule` в `apps/api/src/app.module.ts`
 
 ### Тесты
+
 - [x] `apps/api/src/categories/categories.service.spec.ts` (мок `PrismaService` + `QueryBus`)
 - [x] `apps/api/test/categories.e2e-spec.ts`
 
 ### Проверки
+
 - [x] `npm run typecheck` + `npm run lint` — чисто
 - [x] `npm test` — зелёные (33 юнита в api)
 - [x] `npm run test:e2e` — зелёные (37 e2e)
 - [ ] Ручная проверка CRUD `/api/categories` через `npm run dev` (по желанию — тесты уже покрывают весь CRUD)
 
 ## Верификация
+
 1. `docker compose up -d` (порт 5433), убедиться, что `JWT_SECRET` есть в `.env`.
 2. `npm run db:generate && npm run db:migrate`.
 3. `npm run typecheck` и `npm run lint` — без ошибок (особенно проверка ripple по `CategoryDto`).

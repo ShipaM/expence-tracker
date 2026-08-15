@@ -72,7 +72,10 @@ export class CategoriesController {
   @ApiParam({ name: "id", format: "uuid", description: "Идентификатор категории" })
   @ApiResponse({ status: 200, description: "Категория", type: CategoryResponseDto })
   @ApiResponse({ status: 400, description: "id не UUID" })
-  @ApiResponse({ status: 404, description: "Категория не найдена или принадлежит другому пользователю" })
+  @ApiResponse({
+    status: 404,
+    description: "Категория не найдена или принадлежит другому пользователю",
+  })
   @Get(":id")
   findOne(
     @CurrentUser() userId: string,
@@ -99,13 +102,13 @@ export class CategoriesController {
   })
   @ApiResponse({ status: 201, description: "Категория создана", type: CategoryResponseDto })
   @ApiResponse({ status: 400, description: "Тело не прошло валидацию или содержит лишние поля" })
-  @ApiResponse({ status: 401, description: "Токен невалиден либо пользователя из токена больше нет" })
+  @ApiResponse({
+    status: 401,
+    description: "Токен невалиден либо пользователя из токена больше нет",
+  })
   @ApiResponse({ status: 409, description: "Категория с таким именем у пользователя уже есть" })
   @Post()
-  create(
-    @CurrentUser() userId: string,
-    @Body() dto: CreateCategoryDto,
-  ): Promise<CategoryDto> {
+  create(@CurrentUser() userId: string, @Body() dto: CreateCategoryDto): Promise<CategoryDto> {
     return this.categories.create(userId, dto);
   }
 
@@ -128,7 +131,10 @@ export class CategoriesController {
   @ApiParam({ name: "id", format: "uuid", description: "Идентификатор категории" })
   @ApiResponse({ status: 200, description: "Обновлённая категория", type: CategoryResponseDto })
   @ApiResponse({ status: 400, description: "id не UUID либо тело не прошло валидацию" })
-  @ApiResponse({ status: 404, description: "Категория не найдена или принадлежит другому пользователю" })
+  @ApiResponse({
+    status: 404,
+    description: "Категория не найдена или принадлежит другому пользователю",
+  })
   @ApiResponse({ status: 409, description: "Новое имя занято другой категорией пользователя" })
   @Patch(":id")
   update(
@@ -153,13 +159,13 @@ export class CategoriesController {
   @ApiParam({ name: "id", format: "uuid", description: "Идентификатор категории" })
   @ApiResponse({ status: 204, description: "Категория удалена, тело ответа пустое" })
   @ApiResponse({ status: 400, description: "id не UUID" })
-  @ApiResponse({ status: 404, description: "Категория не найдена или принадлежит другому пользователю" })
+  @ApiResponse({
+    status: 404,
+    description: "Категория не найдена или принадлежит другому пользователю",
+  })
   @Delete(":id")
   @HttpCode(204)
-  remove(
-    @CurrentUser() userId: string,
-    @Param("id", ParseUUIDPipe) id: string,
-  ): Promise<void> {
+  remove(@CurrentUser() userId: string, @Param("id", ParseUUIDPipe) id: string): Promise<void> {
     return this.categories.remove(userId, id);
   }
 }

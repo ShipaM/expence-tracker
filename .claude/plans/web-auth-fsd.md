@@ -10,6 +10,7 @@
 как основу фронта (с фиксацией в `CLAUDE.md`).
 
 Решения, согласованные с пользователем:
+
 - **Сессия — httpOnly-кука через Next Route Handler (BFF-прокси).** Клиент никогда не
   видит токен: форма шлёт запрос на свой Route Handler `/api/auth/*`, тот ходит в Nest,
   получает `accessToken` и кладёт его в httpOnly-куку `session`.
@@ -92,6 +93,7 @@ src/
 ## Реализация по слоям
 
 **shared**
+
 - Перенести `lib/utils.ts → shared/lib/utils.ts`, удалить старый `lib/utils.ts`
   (обновить импорты; сейчас `cn` ещё никем не используется).
 - `shared/api/nest.ts` — на базе старого `request<T>` из `lib/api.ts`: `nestFetch(path, {token?})`,
@@ -103,12 +105,14 @@ src/
 - Удалить старый `lib/api.ts` после переноса.
 
 **entities/session**
+
 - `session.server.ts`: `getSession()` — `cookies()` (next/headers) → токен → `nestFetch("/auth/me", {token})`;
   ошибка/нет куки → `null`. Server-only (`import "server-only"`).
 - `session-context.tsx`: клиентский `SessionProvider` (хранит `user: UserDto | null`,
   начальное значение из сервера) + хук `useSession()`. Для показа «Выйти» и будущих экранов.
 
 **app/api/auth (Route Handlers, BFF)**
+
 - `register/route.ts`, `login/route.ts`: принимают JSON тела, зовут `nestFetch` на
   соответствующий Nest-эндпоинт. При успехе — `cookies().set(SESSION_COOKIE, accessToken, опции)`
   и возвращают `{ user }` со статусом Nest. При ошибке — пробрасывают статус и `message`
@@ -116,6 +120,7 @@ src/
 - `logout/route.ts`: `cookies().delete(SESSION_COOKIE)`, `200`.
 
 **features/auth**
+
 - `model/use-login.ts` / `use-register.ts`: `useForm` с `zodResolver(loginSchema/registerSchema)`,
   `defaultValues`; `onSubmit` → `fetch("/api/auth/login" | "/register", {POST, json})` (свой
   Route Handler, same-origin). Маппинг ошибок: register 409 → `setError("email", ...)`;
@@ -126,10 +131,12 @@ src/
   по `formState.isSubmitting`), вывод корневой ошибки.
 
 **views**
+
 - `LoginPage.tsx` / `RegisterPage.tsx`: центрированная `Card` с заголовком, форма-фича
   внутри и ссылка-переход на встречную страницу (`next/link`).
 
 **app (маршруты)**
+
 - `(auth)/login/page.tsx`, `(auth)/register/page.tsx` — импортируют соответствующий view.
 - `layout.tsx` — читает `getSession()` на сервере, оборачивает `children` в `SessionProvider`
   с начальным `user`.
@@ -142,6 +149,7 @@ src/
 ## CLAUDE.md
 
 Добавить раздел **«Feature-Sliced Design (фронтенд)»**:
+
 - слои и правило импортов только вниз (`app → views → features → entities → shared`);
 - адаптация под App Router: `src/app` — только маршруты и BFF Route Handlers; FSD-слой
   «pages» назван `views`; провайдеры сведены в корневой `layout.tsx`;

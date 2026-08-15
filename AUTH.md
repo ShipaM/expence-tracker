@@ -3,10 +3,10 @@
 Документ описывает полный поток аутентификации трекера расходов — от нажатия
 «Войти» в браузере до проверки JWT в NestJS. Здесь два независимых приложения:
 
-| Приложение | Что это | Порт | Роль в авторизации |
-|---|---|---|---|
-| `apps/web` | Next.js 16 (App Router) | `:3000` | UI + **BFF**: формы, Route Handlers, кука сессии |
-| `apps/api` | NestJS 11 (префикс `/api`) | `:3001` | выдача и проверка JWT, хранение пользователей |
+| Приложение | Что это                    | Порт    | Роль в авторизации                               |
+| ---------- | -------------------------- | ------- | ------------------------------------------------ |
+| `apps/web` | Next.js 16 (App Router)    | `:3000` | UI + **BFF**: формы, Route Handlers, кука сессии |
+| `apps/api` | NestJS 11 (префикс `/api`) | `:3001` | выдача и проверка JWT, хранение пользователей    |
 
 Ключевой принцип — **BFF (Backend-for-Frontend) с httpOnly-кукой**:
 
@@ -52,11 +52,11 @@ PostgreSQL (через Prisma)
 
 Контроллер `@Controller("auth")` + глобальный префикс `api` (`main.ts`) → реальные пути:
 
-| Метод | Путь | Код успеха | Тело запроса | Guard | Ответ |
-|---|---|---|---|---|---|
-| POST | `/api/auth/register` | **201** | `RegisterDto` | — | `AuthResponseDto` |
-| POST | `/api/auth/login` | **200** (`@HttpCode(200)`) | `LoginDto` | — | `AuthResponseDto` |
-| GET | `/api/auth/me` | 200 | — (нужен `Authorization: Bearer`) | `JwtAuthGuard` | `UserDto` |
+| Метод | Путь                 | Код успеха                 | Тело запроса                      | Guard          | Ответ             |
+| ----- | -------------------- | -------------------------- | --------------------------------- | -------------- | ----------------- |
+| POST  | `/api/auth/register` | **201**                    | `RegisterDto`                     | —              | `AuthResponseDto` |
+| POST  | `/api/auth/login`    | **200** (`@HttpCode(200)`) | `LoginDto`                        | —              | `AuthResponseDto` |
+| GET   | `/api/auth/me`       | 200                        | — (нужен `Authorization: Bearer`) | `JwtAuthGuard` | `UserDto`         |
 
 Валидация тела — через `ZodValidationPipe` **на параметре** `@Body`, схемы `registerSchema` /
 `loginSchema` берутся из `@repo/shared` (общие с фронтом). При ошибке — `400` с телом
@@ -65,6 +65,7 @@ PostgreSQL (через Prisma)
 ### Что делает `AuthService` — `auth.service.ts`
 
 **`register(dto)`**
+
 1. `bcrypt.hash(password, 10)` — хэширует пароль (10 раундов).
 2. Диспатчит `CreateUserCommand(email, name, passwordHash)` через `CommandBus`.
    Сохранение делает `users`; уникальность email ловится в `CreateUserHandler` по коду
@@ -72,6 +73,7 @@ PostgreSQL (через Prisma)
 3. `buildResponse(user)` — подписывает JWT и возвращает `{ accessToken, user }`.
 
 **`login(dto)`**
+
 1. `GetUserByEmailQuery(email)` через `QueryBus`.
 2. Если пользователя нет **или** `bcrypt.compare(password, passwordHash)` не сошёлся →
    `UnauthorizedException("Неверный email или пароль")` (**401**). Формулировка одна на оба
@@ -79,11 +81,13 @@ PostgreSQL (через Prisma)
 3. `buildResponse(user)`.
 
 **`me(userId)`**
+
 1. `GetUserByIdQuery(userId)` — **перепроверяет, что пользователь ещё существует** (мог быть
    удалён, пока жив 7-дневный токен). Нет → `UnauthorizedException` (**401**).
 2. Возвращает `UserDto`.
 
 **`buildResponse` / `toUserDto`**
+
 ```ts
 private buildResponse(user: User): AuthResponseDto {
   const accessToken = this.jwt.sign({ sub: user.id, email: user.email });
@@ -93,6 +97,7 @@ private toUserDto(user: User): UserDto {
   return { id: user.id, email: user.email, name: user.name };
 }
 ```
+
 > `passwordHash` **никогда не покидает бэкенд** — наружу уходит только `{ id, email, name }`.
 
 ### Подпись и проверка JWT
@@ -116,8 +121,11 @@ private toUserDto(user: User): UserDto {
 ```ts
 app.enableCors({ origin: process.env.CORS_ORIGIN ?? "http://localhost:3000", credentials: true });
 app.setGlobalPrefix("api");
-app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+app.useGlobalPipes(
+  new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+);
 ```
+
 CORS разрешает origin фронта (на случай прямых запросов). Глобальный `ValidationPipe` нужен
 модулям `categories` и `transactions` (class-validator) и **не мешает** zod-контроллерам auth.
 
@@ -163,9 +171,9 @@ export async function proxyAuth(path, body) {
     return NextResponse.json(data, { status: response.status }); // пробрасываем 401/409/400 как есть
   }
 
-  const { accessToken, user } = data;                            // токен остаётся на сервере
+  const { accessToken, user } = data; // токен остаётся на сервере
   (await cookies()).set(SESSION_COOKIE, accessToken, sessionCookieOptions());
-  return NextResponse.json({ user });                            // наружу — только user
+  return NextResponse.json({ user }); // наружу — только user
 }
 ```
 
@@ -174,6 +182,7 @@ export async function proxyAuth(path, body) {
 - **`logout`** → `cookies().delete(SESSION_COOKIE)`.
 
 **Опции куки** — `shared/config/cookie.ts`:
+
 ```ts
 export const SESSION_COOKIE = "session";
 // httpOnly, sameSite "lax", secure только в проде, path "/", maxAge = 7 дней (под срок JWT)
@@ -190,8 +199,11 @@ export const SESSION_COOKIE = "session";
   ```ts
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  try { return await nestJson<UserDto>("/auth/me", { token }); }
-  catch { return null; }
+  try {
+    return await nestJson<UserDto>("/auth/me", { token });
+  } catch {
+    return null;
+  }
   ```
   То есть кука не просто читается — токен **валидируется реальным запросом к Nest `/auth/me`**
   (истёк/пользователь удалён → `null`).
@@ -202,12 +214,18 @@ export const SESSION_COOKIE = "session";
 ### 4. Провайдер и layout — `app/layout.tsx`
 
 Корневой layout серверный и async:
+
 ```tsx
 const user = await getSession();
-return (<html lang="ru"><body>
-  <SessionProvider user={user}>{children}</SessionProvider>
-</body></html>);
+return (
+  <html lang="ru">
+    <body>
+      <SessionProvider user={user}>{children}</SessionProvider>
+    </body>
+  </html>
+);
 ```
+
 Начальное значение сессии приходит **с сервера**, поэтому `useSession()` на клиенте имеет
 правильное значение уже на первом рендере (без «мигания»).
 
@@ -243,6 +261,7 @@ sequenceDiagram
     N-->>B: 201 { user }   (без токена)
     B->>B: router.push("/") + refresh()
 ```
+
 Если email занят: Nest → `409 "Email уже занят"`, Next пробрасывает `409`, форма показывает
 ошибку под полем email.
 
@@ -366,12 +385,12 @@ curl -s -X POST http://localhost:3001/api/auth/register \
 
 ## Обработка ошибок (сводка)
 
-| Ситуация | Nest отдаёт | Что делает форма |
-|---|---|---|
-| Невалидное тело | `400 { message, issues }` | ошибки по полям из `issues` (обычно отсекается клиентским zod) |
-| Email занят (register) | `409 { message: "Email уже занят" }` | ошибка под полем `email` |
-| Неверные креды (login) | `401 { message: "Неверный email или пароль" }` | корневая ошибка формы |
-| Токен истёк/пользователь удалён (`/me`) | `401` | `getSession()` → `null`, UI как для гостя |
+| Ситуация                                | Nest отдаёт                                    | Что делает форма                                               |
+| --------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
+| Невалидное тело                         | `400 { message, issues }`                      | ошибки по полям из `issues` (обычно отсекается клиентским zod) |
+| Email занят (register)                  | `409 { message: "Email уже занят" }`           | ошибка под полем `email`                                       |
+| Неверные креды (login)                  | `401 { message: "Неверный email или пароль" }` | корневая ошибка формы                                          |
+| Токен истёк/пользователь удалён (`/me`) | `401`                                          | `getSession()` → `null`, UI как для гостя                      |
 
 ---
 
@@ -405,31 +424,33 @@ curl -s -X POST http://localhost:3001/api/auth/register \
 ## Карта файлов
 
 **Сервер (`apps/api/src/`)**
-| Файл | Назначение |
-|---|---|
-| `auth/auth.controller.ts` | эндпоинты register/login/me |
-| `auth/auth.service.ts` | bcrypt, подпись JWT, сборка ответа |
-| `auth/auth.module.ts` | `JwtModule` (секрет, `expiresIn: 7d`), провайдеры |
-| `auth/jwt.strategy.ts` | проверка токена, `request.user` |
-| `auth/jwt-auth.guard.ts` | `AuthGuard("jwt")` |
-| `auth/current-user.decorator.ts` | `@CurrentUser()` → `userId` из токена |
-| `users/handlers/create-user.handler.ts` | создание юзера, `P2002` → 409 |
-| `main.ts` | CORS, префикс `/api`, глобальный `ValidationPipe` |
+
+| Файл                                    | Назначение                                        |
+| --------------------------------------- | ------------------------------------------------- |
+| `auth/auth.controller.ts`               | эндпоинты register/login/me                       |
+| `auth/auth.service.ts`                  | bcrypt, подпись JWT, сборка ответа                |
+| `auth/auth.module.ts`                   | `JwtModule` (секрет, `expiresIn: 7d`), провайдеры |
+| `auth/jwt.strategy.ts`                  | проверка токена, `request.user`                   |
+| `auth/jwt-auth.guard.ts`                | `AuthGuard("jwt")`                                |
+| `auth/current-user.decorator.ts`        | `@CurrentUser()` → `userId` из токена             |
+| `users/handlers/create-user.handler.ts` | создание юзера, `P2002` → 409                     |
+| `main.ts`                               | CORS, префикс `/api`, глобальный `ValidationPipe` |
 
 **Клиент/BFF (`apps/web/src/`)**
-| Файл | Назначение |
-|---|---|
-| `features/auth/login/*`, `features/auth/register/*` | формы + модель (RHF + zodResolver) |
-| `features/auth/logout/ui/LogoutButton.tsx` | выход |
-| `app/api/auth/{login,register,logout}/route.ts` | BFF Route Handlers |
-| `shared/api/auth.server.ts` | `proxyAuth` (прокси + установка куки) |
-| `shared/api/nest.ts` | `nestFetch` / `nestJson` (клиент к Nest, server-only) |
-| `shared/config/cookie.ts` | имя и опции куки `session` |
-| `entities/session/model/session.server.ts` | `getSession()` (server-only) |
-| `entities/session/model/session-context.tsx` | `SessionProvider` / `useSession()` |
-| `app/layout.tsx` | читает сессию, оборачивает в провайдер |
-| `widgets/auth-status/*` | статус входа на главной |
-| `proxy.ts` | редирект залогиненного с `/login`,`/register` |
+
+| Файл                                                | Назначение                                            |
+| --------------------------------------------------- | ----------------------------------------------------- |
+| `features/auth/login/*`, `features/auth/register/*` | формы + модель (RHF + zodResolver)                    |
+| `features/auth/logout/ui/LogoutButton.tsx`          | выход                                                 |
+| `app/api/auth/{login,register,logout}/route.ts`     | BFF Route Handlers                                    |
+| `shared/api/auth.server.ts`                         | `proxyAuth` (прокси + установка куки)                 |
+| `shared/api/nest.ts`                                | `nestFetch` / `nestJson` (клиент к Nest, server-only) |
+| `shared/config/cookie.ts`                           | имя и опции куки `session`                            |
+| `entities/session/model/session.server.ts`          | `getSession()` (server-only)                          |
+| `entities/session/model/session-context.tsx`        | `SessionProvider` / `useSession()`                    |
+| `app/layout.tsx`                                    | читает сессию, оборачивает в провайдер                |
+| `widgets/auth-status/*`                             | статус входа на главной                               |
+| `proxy.ts`                                          | редирект залогиненного с `/login`,`/register`         |
 
 **Общее (`packages/shared/src/index.ts`)** — `registerSchema`, `loginSchema`, типы
 `RegisterDto`, `LoginDto`, `UserDto`, `AuthResponseDto`. Одни и те же правила валидации и

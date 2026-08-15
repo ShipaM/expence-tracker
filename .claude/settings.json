@@ -3,5 +3,46 @@
     "allow": ["Bash(npm test)", "Bash(git *)"],
     "deny": ["Bash(git push *)"],
     "ask": ["Bash(git commit *)"]
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/notify.sh\"",
+            "async": true,
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/protected.sh\"",
+            "timeout": 10,
+            "statusMessage": "Проверка защищённых файлов"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/format-edited-file.sh\"",
+            "timeout": 60,
+            "statusMessage": "Prettier + eslint для изменённого файла"
+          }
+        ]
+      }
+    ]
   }
 }

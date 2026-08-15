@@ -58,8 +58,7 @@ export function useRegister() {
     }
 
     form.setError("root", {
-      message:
-        typeof data?.message === "string" ? data.message : "Не удалось зарегистрироваться",
+      message: typeof data?.message === "string" ? data.message : "Не удалось зарегистрироваться",
     });
   }
 

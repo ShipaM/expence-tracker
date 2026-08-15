@@ -13,24 +13,24 @@
 
 ## Стек
 
-| Слой | Технология |
-|---|---|
-| Монорепо | npm workspaces + Turborepo 2.10 |
-| Язык | TypeScript 5.9 |
-| Фронтенд | Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui |
-| Бэкенд | NestJS 11, Passport + JWT, CQRS (`@nestjs/cqrs`) |
-| БД / ORM | PostgreSQL 18, Prisma 7 (driver adapter `@prisma/adapter-pg`) |
-| Валидация | zod 4 (auth, общие схемы в `@repo/shared`) + class-validator (`categories`, `transactions`) |
-| Документация API | OpenAPI через `@nestjs/swagger`, UI на `/api/docs` |
-| Тесты | Vitest 4 (юниты), supertest (e2e для API) |
+| Слой             | Технология                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| Монорепо         | npm workspaces + Turborepo 2.10                                                             |
+| Язык             | TypeScript 5.9                                                                              |
+| Фронтенд         | Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui                                |
+| Бэкенд           | NestJS 11, Passport + JWT, CQRS (`@nestjs/cqrs`)                                            |
+| БД / ORM         | PostgreSQL 18, Prisma 7 (driver adapter `@prisma/adapter-pg`)                               |
+| Валидация        | zod 4 (auth, общие схемы в `@repo/shared`) + class-validator (`categories`, `transactions`) |
+| Документация API | OpenAPI через `@nestjs/swagger`, UI на `/api/docs`                                          |
+| Тесты            | Vitest 4 (юниты), supertest (e2e для API)                                                   |
 
 ## Требования
 
-| Что | Версия | Зачем |
-|---|---|---|
-| Node.js | >= 20.9.0 | указано в `engines` корневого `package.json` |
-| npm | 11.13.0 | зафиксирован в `packageManager`; workspaces |
-| Docker | любой актуальный | контейнер PostgreSQL 18 из `docker-compose.yml` |
+| Что     | Версия           | Зачем                                           |
+| ------- | ---------------- | ----------------------------------------------- |
+| Node.js | >= 20.9.0        | указано в `engines` корневого `package.json`    |
+| npm     | 11.13.0          | зафиксирован в `packageManager`; workspaces     |
+| Docker  | любой актуальный | контейнер PostgreSQL 18 из `docker-compose.yml` |
 
 Свободные порты: **3000** (web), **3001** (api), **5433** (PostgreSQL), 5555 — если
 понадобится Prisma Studio.
@@ -55,16 +55,16 @@ cp .env.example .env
 единый источник правды: их же читает `docker-compose.yml`, а `DATABASE_URL` собирается из
 них через `dotenv-expand`.
 
-| Переменная | Назначение |
-|---|---|
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | учётные данные контейнера |
-| `POSTGRES_HOST` / `POSTGRES_PORT` | хост и порт на стороне хоста (по умолчанию `localhost:5433`) |
-| `DATABASE_URL` | строка подключения; собирается из `POSTGRES_*`, руками менять не нужно |
-| `TEST_DATABASE_URL` | отдельная БД для e2e; без неё имя выводится из `DATABASE_URL` с суффиксом `_test` |
-| `PORT` | порт бэкенда, по умолчанию 3001 |
-| `CORS_ORIGIN` | источник, которому бэкенд разрешает запросы (адрес фронтенда) |
-| `JWT_SECRET` | секрет подписи токенов — **обязателен** |
-| `NEXT_PUBLIC_API_URL` | адрес бэкенда для фронтенда |
+| Переменная                                            | Назначение                                                                        |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | учётные данные контейнера                                                         |
+| `POSTGRES_HOST` / `POSTGRES_PORT`                     | хост и порт на стороне хоста (по умолчанию `localhost:5433`)                      |
+| `DATABASE_URL`                                        | строка подключения; собирается из `POSTGRES_*`, руками менять не нужно            |
+| `TEST_DATABASE_URL`                                   | отдельная БД для e2e; без неё имя выводится из `DATABASE_URL` с суффиксом `_test` |
+| `PORT`                                                | порт бэкенда, по умолчанию 3001                                                   |
+| `CORS_ORIGIN`                                         | источник, которому бэкенд разрешает запросы (адрес фронтенда)                     |
+| `JWT_SECRET`                                          | секрет подписи токенов — **обязателен**                                           |
+| `NEXT_PUBLIC_API_URL`                                 | адрес бэкенда для фронтенда                                                       |
 
 `JWT_SECRET` в `.env.example` — плейсхолдер, его нужно заменить: без валидного значения
 `JwtStrategy` бросает ошибку прямо при старте, и `api` не поднимается вообще.
@@ -151,44 +151,44 @@ Design — импорт только «вниз» по слоям. Модуль 
 
 ### Авторизация
 
-| Метод | Путь | Описание |
-|---|---|---|
+| Метод  | Путь             | Описание                                |
+| ------ | ---------------- | --------------------------------------- |
 | `POST` | `/auth/register` | регистрация; возвращает токен и профиль |
-| `POST` | `/auth/login` | вход; возвращает токен и профиль |
-| `GET` | `/auth/me` | профиль владельца токена |
+| `POST` | `/auth/login`    | вход; возвращает токен и профиль        |
+| `GET`  | `/auth/me`       | профиль владельца токена                |
 
 ### Транзакции
 
-| Метод | Путь | Описание |
-|---|---|---|
-| `GET` | `/transactions` | список с фильтрами `dateFrom`, `dateTo`, `type`, `categoryId` и пагинацией `page`, `limit` |
-| `GET` | `/transactions/summary?month=&year=` | итоги за месяц: доход, расход, баланс, разбивка по категориям |
-| `GET` | `/transactions/:id` | одна транзакция |
-| `POST` | `/transactions` | создать |
-| `PATCH` | `/transactions/:id` | частично обновить |
-| `DELETE` | `/transactions/:id` | удалить (204) |
+| Метод    | Путь                                 | Описание                                                                                   |
+| -------- | ------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `GET`    | `/transactions`                      | список с фильтрами `dateFrom`, `dateTo`, `type`, `categoryId` и пагинацией `page`, `limit` |
+| `GET`    | `/transactions/summary?month=&year=` | итоги за месяц: доход, расход, баланс, разбивка по категориям                              |
+| `GET`    | `/transactions/:id`                  | одна транзакция                                                                            |
+| `POST`   | `/transactions`                      | создать                                                                                    |
+| `PATCH`  | `/transactions/:id`                  | частично обновить                                                                          |
+| `DELETE` | `/transactions/:id`                  | удалить (204)                                                                              |
 
 ### Категории
 
-| Метод | Путь | Описание |
-|---|---|---|
-| `GET` | `/categories` | все категории пользователя |
-| `GET` | `/categories/:id` | одна категория |
-| `POST` | `/categories` | создать (имя уникально в пределах пользователя) |
-| `PATCH` | `/categories/:id` | частично обновить |
-| `DELETE` | `/categories/:id` | удалить (204) |
+| Метод    | Путь              | Описание                                        |
+| -------- | ----------------- | ----------------------------------------------- |
+| `GET`    | `/categories`     | все категории пользователя                      |
+| `GET`    | `/categories/:id` | одна категория                                  |
+| `POST`   | `/categories`     | создать (имя уникально в пределах пользователя) |
+| `PATCH`  | `/categories/:id` | частично обновить                               |
+| `DELETE` | `/categories/:id` | удалить (204)                                   |
 
 ### Регулярные платежи
 
-| Метод | Путь | Описание |
-|---|---|---|
-| `GET` | `/payments` | список с фильтрами `isActive`, `categoryId`, `dueBefore` |
-| `GET` | `/payments/upcoming?days=30` | что спишется в ближайшие N дней, с итогами по типам |
-| `GET` | `/payments/:id` | один платёж |
-| `POST` | `/payments` | создать шаблон повторяющейся операции |
-| `PATCH` | `/payments/:id` | частично обновить |
-| `POST` | `/payments/:id/pay` | отметить оплаченным: создаёт транзакцию и сдвигает дату |
-| `DELETE` | `/payments/:id` | удалить (204) |
+| Метод    | Путь                         | Описание                                                 |
+| -------- | ---------------------------- | -------------------------------------------------------- |
+| `GET`    | `/payments`                  | список с фильтрами `isActive`, `categoryId`, `dueBefore` |
+| `GET`    | `/payments/upcoming?days=30` | что спишется в ближайшие N дней, с итогами по типам      |
+| `GET`    | `/payments/:id`              | один платёж                                              |
+| `POST`   | `/payments`                  | создать шаблон повторяющейся операции                    |
+| `PATCH`  | `/payments/:id`              | частично обновить                                        |
+| `POST`   | `/payments/:id/pay`          | отметить оплаченным: создаёт транзакцию и сдвигает дату  |
+| `DELETE` | `/payments/:id`              | удалить (204)                                            |
 
 Денежные суммы ходят через API **строками** (`"1234.56"`): в БД это `Decimal(12,2)`, а
 JSON-число теряет точность на копейках.
@@ -219,16 +219,18 @@ E2E поднимают приложение Nest и бьют по HTTP реал�
 
 ## Скрипты
 
-| Команда | Действие |
-|---|---|
-| `npm run dev` | Запустить web и api параллельно |
-| `npm run build` | Собрать все воркспейсы |
-| `npm run typecheck` | Проверка типов |
-| `npm run lint` | Линтинг |
-| `npm run db:generate` | Сгенерировать Prisma Client |
-| `npm run db:migrate` | Миграции Prisma |
-| `npm run db:studio` | Prisma Studio на :5555 |
-| `npm run clean` | Удалить `dist`, `.next`, `src/generated` |
+| Команда                | Действие                                 |
+| ---------------------- | ---------------------------------------- |
+| `npm run dev`          | Запустить web и api параллельно          |
+| `npm run build`        | Собрать все воркспейсы                   |
+| `npm run typecheck`    | Проверка типов                           |
+| `npm run lint`         | Линтинг                                  |
+| `npm run format`       | Форматирование Prettier по всему репо    |
+| `npm run format:check` | Проверка форматирования без записи       |
+| `npm run db:generate`  | Сгенерировать Prisma Client              |
+| `npm run db:migrate`   | Миграции Prisma                          |
+| `npm run db:studio`    | Prisma Studio на :5555                   |
+| `npm run clean`        | Удалить `dist`, `.next`, `src/generated` |
 
 Скрипт одного воркспейса — `npm run <script> --workspace @repo/<web\|api\|db\|shared>`.
 

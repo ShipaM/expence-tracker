@@ -35,25 +35,25 @@ PrismaService доступ к БД (у users дополнительно выде
 
 Дополнительные элементы:
 
-| Элемент | Где | Роль |
-|---|---|---|
-| `JwtAuthGuard` | `auth/` | пускает только с валидным Bearer-токеном |
-| `JwtStrategy` | `auth/` | проверяет подпись и срок, кладёт `{ userId, email }` в `request.user` |
-| `@CurrentUser()` | `auth/` | достаёт `userId` из `request.user` в аргумент метода |
-| `ZodValidationPipe` | `common/` | валидация zod-схемой; вешается **на параметр** |
-| Глобальный `ValidationPipe` | `main.ts` | class-validator для DTO-классов |
-| `PrismaService` | `prisma/` | содержит клиент Prisma; модуль глобальный |
+| Элемент                     | Где       | Роль                                                                  |
+| --------------------------- | --------- | --------------------------------------------------------------------- |
+| `JwtAuthGuard`              | `auth/`   | пускает только с валидным Bearer-токеном                              |
+| `JwtStrategy`               | `auth/`   | проверяет подпись и срок, кладёт `{ userId, email }` в `request.user` |
+| `@CurrentUser()`            | `auth/`   | достаёт `userId` из `request.user` в аргумент метода                  |
+| `ZodValidationPipe`         | `common/` | валидация zod-схемой; вешается **на параметр**                        |
+| Глобальный `ValidationPipe` | `main.ts` | class-validator для DTO-классов                                       |
+| `PrismaService`             | `prisma/` | содержит клиент Prisma; модуль глобальный                             |
 
 ### Модули
 
-| Модуль | HTTP | Назначение |
-|---|---|---|
-| `auth` | `/api/auth` | регистрация, вход, профиль; владеет bcrypt и подписью JWT |
-| `users` | нет | хранение пользователей; наружу только CQRS-контракты |
-| `transactions` | `/api/transactions` | CRUD транзакций и агрегация за месяц |
-| `categories` | `/api/categories` | CRUD категорий |
-| `payments` | `/api/payments` | регулярные платежи: шаблоны повторяющихся операций |
-| `prisma` | нет | глобальный доступ к БД |
+| Модуль         | HTTP                | Назначение                                                |
+| -------------- | ------------------- | --------------------------------------------------------- |
+| `auth`         | `/api/auth`         | регистрация, вход, профиль; владеет bcrypt и подписью JWT |
+| `users`        | нет                 | хранение пользователей; наружу только CQRS-контракты      |
+| `transactions` | `/api/transactions` | CRUD транзакций и агрегация за месяц                      |
+| `categories`   | `/api/categories`   | CRUD категорий                                            |
+| `payments`     | `/api/payments`     | регулярные платежи: шаблоны повторяющихся операций        |
+| `prisma`       | нет                 | глобальный доступ к БД                                    |
 
 ## Паттерн: граница Users ↔ остальные модули через CQRS
 
@@ -97,10 +97,10 @@ Query-параметры (`dateFrom/dateTo/type/categoryId`, `month/year`) — �
 
 ## Паттерн: два способа валидации
 
-| Способ | Где | Как |
-|---|---|---|
-| zod (по умолчанию) | `auth`, `payments` | схемы в `@repo/shared`, `@Body(new ZodValidationPipe(schema))` |
-| class-validator | `transactions`, `categories` | DTO-классы + глобальный `ValidationPipe` |
+| Способ             | Где                          | Как                                                            |
+| ------------------ | ---------------------------- | -------------------------------------------------------------- |
+| zod (по умолчанию) | `auth`, `payments`           | схемы в `@repo/shared`, `@Body(new ZodValidationPipe(schema))` |
+| class-validator    | `transactions`, `categories` | DTO-классы + глобальный `ValidationPipe`                       |
 
 Это осознанное отступление, а не два стандарта: для новых модулей предпочтителен zod.
 Глобальный `ValidationPipe` не ломает zod-контроллеры, потому что их `@Body`-типы — это
@@ -149,10 +149,10 @@ RSC-prefetch.
 
 ## packages
 
-| Пакет | Содержимое |
-|---|---|
-| `@repo/db` | схема Prisma, миграции, сгенерированный клиент, `createPrismaClient()` |
-| `@repo/shared` | zod-схемы и типы ответов, общие для фронта и бэка |
+| Пакет          | Содержимое                                                             |
+| -------------- | ---------------------------------------------------------------------- |
+| `@repo/db`     | схема Prisma, миграции, сгенерированный клиент, `createPrismaClient()` |
+| `@repo/shared` | zod-схемы и типы ответов, общие для фронта и бэка                      |
 
 Особенности Prisma 7: строка подключения задаётся в `prisma.config.ts` (не в `datasource`),
 генератор — `prisma-client` с обязательным `output`, driver adapter обязателен, клиент

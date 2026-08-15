@@ -30,16 +30,11 @@ export const metadata: Metadata = {
   description: "Учёт доходов и расходов",
 };
 
-export default async function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const user = await getSession();
 
   return (
-    <html
-      lang="ru"
-      className={`${golos.variable} ${unbounded.variable} ${jetbrains.variable}`}
-    >
+    <html lang="ru" className={`${golos.variable} ${unbounded.variable} ${jetbrains.variable}`}>
       <body>
         <SessionProvider user={user}>{children}</SessionProvider>
       </body>

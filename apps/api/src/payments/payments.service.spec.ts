@@ -162,7 +162,12 @@ describe("PaymentsService", () => {
     it("берёт только активные и считает итоги по типам", async () => {
       prismaMock.client.payment.findMany.mockResolvedValue([
         paymentRow,
-        { ...paymentRow, id: "other", type: "INCOME" as const, amount: new Prisma.Decimal("75000.00") },
+        {
+          ...paymentRow,
+          id: "other",
+          type: "INCOME" as const,
+          amount: new Prisma.Decimal("75000.00"),
+        },
       ]);
 
       const result = await service.upcoming(USER_ID, 30);

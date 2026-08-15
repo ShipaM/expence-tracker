@@ -171,7 +171,9 @@ describe("CategoriesService", () => {
 
       await service.remove(USER_ID, CATEGORY_ID);
 
-      expect(prismaMock.client.category.delete).toHaveBeenCalledWith({ where: { id: CATEGORY_ID } });
+      expect(prismaMock.client.category.delete).toHaveBeenCalledWith({
+        where: { id: CATEGORY_ID },
+      });
     });
 
     it("не удаляет чужую категорию", async () => {

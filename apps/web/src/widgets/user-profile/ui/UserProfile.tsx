@@ -2,13 +2,7 @@
 
 import { useSession } from "@/entities/session";
 import { LogoutButton } from "@/features/auth/logout";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 
 /** Карточка профиля: имя (или email как фолбэк, т.к. name nullable) + выход. */
 export function UserProfile() {

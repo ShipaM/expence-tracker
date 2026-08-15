@@ -1,0 +1,16 @@
+# Артефакты сборки и зависимости — совпадают с .gitignore
+node_modules/
+dist/
+build/
+.next/
+out/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Prisma 7 генерирует клиент в исходники пакета (см. корневой CLAUDE.md)
+packages/db/src/generated/
+
+# Лок-файлы и миграции переписывать нельзя
+package-lock.json
+packages/db/prisma/migrations/

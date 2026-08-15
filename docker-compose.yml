@@ -18,7 +18,8 @@ services:
       # образ сам кладёт данные в подкаталог с именем мажорной версии.
       - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-expence_tracker}"]
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-expence_tracker}"]
       interval: 10s
       timeout: 5s
       retries: 5

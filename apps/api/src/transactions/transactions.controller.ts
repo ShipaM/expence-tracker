@@ -11,18 +11,8 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from "@nestjs/swagger";
-import type {
-  PaginatedTransactionsDto,
-  TransactionDto,
-  TransactionSummaryDto,
-} from "@repo/shared";
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
+import type { PaginatedTransactionsDto, TransactionDto, TransactionSummaryDto } from "@repo/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { TransactionsService } from "./transactions.service";
@@ -128,9 +118,16 @@ export class TransactionsController {
       "чтобы не раскрывать факт её существования.",
   })
   @ApiParam({ name: "id", format: "uuid", description: "Идентификатор транзакции" })
-  @ApiResponse({ status: 200, description: "Транзакция с категорией", type: TransactionResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: "Транзакция с категорией",
+    type: TransactionResponseDto,
+  })
   @ApiResponse({ status: 400, description: "id не UUID" })
-  @ApiResponse({ status: 404, description: "Транзакция не найдена или принадлежит другому пользователю" })
+  @ApiResponse({
+    status: 404,
+    description: "Транзакция не найдена или принадлежит другому пользователю",
+  })
   @Get(":id")
   findOne(
     @CurrentUser() userId: string,
@@ -160,8 +157,14 @@ export class TransactionsController {
   })
   @ApiResponse({ status: 201, description: "Транзакция создана", type: TransactionResponseDto })
   @ApiResponse({ status: 400, description: "Тело не прошло валидацию или содержит лишние поля" })
-  @ApiResponse({ status: 401, description: "Токен невалиден либо пользователя из токена больше нет" })
-  @ApiResponse({ status: 404, description: "Категория не найдена или принадлежит другому пользователю" })
+  @ApiResponse({
+    status: 401,
+    description: "Токен невалиден либо пользователя из токена больше нет",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Категория не найдена или принадлежит другому пользователю",
+  })
   @Post()
   create(
     @CurrentUser() userId: string,
@@ -216,13 +219,13 @@ export class TransactionsController {
   @ApiParam({ name: "id", format: "uuid", description: "Идентификатор транзакции" })
   @ApiResponse({ status: 204, description: "Транзакция удалена, тело ответа пустое" })
   @ApiResponse({ status: 400, description: "id не UUID" })
-  @ApiResponse({ status: 404, description: "Транзакция не найдена или принадлежит другому пользователю" })
+  @ApiResponse({
+    status: 404,
+    description: "Транзакция не найдена или принадлежит другому пользователю",
+  })
   @Delete(":id")
   @HttpCode(204)
-  remove(
-    @CurrentUser() userId: string,
-    @Param("id", ParseUUIDPipe) id: string,
-  ): Promise<void> {
+  remove(@CurrentUser() userId: string, @Param("id", ParseUUIDPipe) id: string): Promise<void> {
     return this.transactions.remove(userId, id);
   }
 }

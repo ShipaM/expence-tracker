@@ -199,9 +199,9 @@ describe("TransactionsService", () => {
       prismaMock.client.transaction.findFirst.mockResolvedValue(transactionRow);
       prismaMock.client.category.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.update(USER_ID, TX_ID, { categoryId: CATEGORY_ID }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update(USER_ID, TX_ID, { categoryId: CATEGORY_ID })).rejects.toThrow(
+        NotFoundException,
+      );
       expect(prismaMock.client.transaction.update).not.toHaveBeenCalled();
     });
 
@@ -241,9 +241,15 @@ describe("TransactionsService", () => {
           { type: "EXPENSE", _sum: { amount: new Prisma.Decimal("3200") } },
         ])
         .mockResolvedValueOnce([
-          { categoryId: CATEGORY_ID, type: "EXPENSE", _sum: { amount: new Prisma.Decimal("3200") } },
+          {
+            categoryId: CATEGORY_ID,
+            type: "EXPENSE",
+            _sum: { amount: new Prisma.Decimal("3200") },
+          },
         ]);
-      prismaMock.client.category.findMany.mockResolvedValue([{ id: CATEGORY_ID, name: "Продукты" }]);
+      prismaMock.client.category.findMany.mockResolvedValue([
+        { id: CATEGORY_ID, name: "Продукты" },
+      ]);
 
       const result = await service.summary(USER_ID, 7, 2026);
 
