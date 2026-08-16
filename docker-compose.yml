@@ -24,5 +24,22 @@ services:
       timeout: 5s
       retries: 5
 
+  dbhub:
+    image: bytebase/dbhub:latest
+    container_name: expence-tracker-dbhub
+    restart: unless-stopped
+    ports:
+      - "${DBHUB_PORT:-8080}:8080"
+    command:
+      - "--transport=http"
+      - "--port=8080"
+      # Хост — имя сервиса `postgres` и порт 5432: это адрес ВНУТРИ compose-сети,
+      # публикация на 5433 к нему отношения не имеет. Креды и имя БД — из тех же
+      # POSTGRES_* в .env, что и у самой БД, чтобы значения не разъезжались.
+      - "--dsn=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-expence_tracker}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres-data:

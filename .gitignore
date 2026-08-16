@@ -4,6 +4,7 @@ build/
 .next/
 out/
 .turbo/
+.playwright-mcp
 
 # Prisma 7 генерирует клиент в исходники пакета, а не в node_modules
 packages/db/src/generated/
